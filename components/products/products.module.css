@@ -1,0 +1,107 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(2.2rem, 4vw, 5rem) clamp(1rem, 2.5vw, 2.5rem);
+}
+
+.card {
+  min-width: 0;
+}
+
+.imageWrap {
+  position: relative;
+}
+
+.imageLink {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
+  background: #e8e3d8;
+}
+
+.image {
+  object-fit: cover;
+  transition: transform 700ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.imageLink:hover .image {
+  transform: scale(1.025);
+}
+
+.collection {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  padding: 0.7rem 0.9rem;
+  background: rgba(248, 246, 240, 0.92);
+  color: var(--ink-soft);
+  font-size: 0.58rem;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.wishlist {
+  position: absolute;
+  z-index: 2;
+  top: 0.8rem;
+  right: 0.8rem;
+  display: grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  place-items: center;
+  border: 1px solid rgba(28, 30, 27, 0.18);
+  border-radius: 50%;
+  background: rgba(248, 246, 240, 0.9);
+  color: var(--oxblood);
+  font-size: 1.15rem;
+  backdrop-filter: blur(8px);
+}
+
+.wishlist:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.meta h3 {
+  margin: 0 0 0.25rem;
+  font-size: clamp(1.4rem, 2vw, 1.9rem);
+  line-height: 1.05;
+}
+
+.meta p {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.76rem;
+}
+
+.meta .colorHints {
+  margin-top: 0.42rem;
+  color: var(--ink-soft);
+  font-size: 0.63rem;
+  letter-spacing: 0.04em;
+}
+
+.price {
+  flex: 0 0 auto;
+  color: var(--ink) !important;
+  font-size: 0.72rem !important;
+  white-space: nowrap;
+}
+
+@media (max-width: 920px) {
+  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 600px) {
+  .grid { grid-template-columns: 1fr; }
+  .meta h3 { font-size: 1.75rem; }
+}

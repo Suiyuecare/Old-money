@@ -1,0 +1,307 @@
+.hero {
+  position: relative;
+  display: grid;
+  min-height: min(86svh, 950px);
+  color: var(--white);
+  overflow: hidden;
+}
+
+.heroImage {
+  object-fit: cover;
+  object-position: center;
+}
+
+.heroShade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(18, 23, 19, 0.74) 0%, rgba(18, 23, 19, 0.23) 48%, rgba(18, 23, 19, 0.08) 100%);
+}
+
+.heroContent {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 1600px);
+  align-self: end;
+  margin-inline: auto;
+  padding: clamp(5rem, 10vw, 9rem) var(--page-pad);
+}
+
+.heroContent h1 {
+  max-width: 10ch;
+  margin: 0 0 2rem;
+  text-wrap: balance;
+}
+
+.heroContent p {
+  max-width: 30rem;
+  margin-bottom: 2rem;
+}
+
+.heroContent :global(.button-secondary) {
+  border-color: rgba(255, 254, 249, 0.65);
+}
+
+.heroNote {
+  position: absolute;
+  z-index: 1;
+  right: var(--page-pad);
+  bottom: 2rem;
+  margin: 0;
+  font-size: 0.62rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  writing-mode: vertical-rl;
+}
+
+.statement {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(260px, 0.5fr);
+  gap: clamp(2rem, 7vw, 8rem);
+}
+
+.statement > :global(.eyebrow) {
+  grid-column: 1 / -1;
+  margin-bottom: -1rem;
+}
+
+.statement > p {
+  margin: 0;
+}
+
+.statementCopy {
+  align-self: end;
+  color: var(--ink-soft);
+}
+
+.featured {
+  background: var(--ivory-100);
+}
+
+.stewardship {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-height: min(74vw, 880px);
+  background: var(--olive);
+  color: var(--white);
+}
+
+.stewardshipVisual {
+  position: relative;
+  min-height: 42rem;
+  overflow: hidden;
+}
+
+.stewardshipVisual img {
+  object-fit: cover;
+}
+
+.stewardshipCopy {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  padding: clamp(4rem, 9vw, 9rem) var(--page-pad);
+}
+
+.stewardshipCopy :global(.eyebrow) {
+  color: #d8c9ad;
+}
+
+.stewardshipCopy h2 {
+  max-width: 9ch;
+  margin: 0 0 2rem;
+  font-size: clamp(3rem, 6.3vw, 6.5rem);
+  line-height: 0.95;
+}
+
+.stewardshipCopy > p {
+  max-width: 36rem;
+  margin: 0 0 2.5rem;
+  color: rgba(255, 254, 249, 0.78);
+}
+
+.stewardshipCopy dl {
+  width: min(100%, 38rem);
+  margin: 0 0 2.4rem;
+  border-top: 1px solid rgba(255, 254, 249, 0.25);
+}
+
+.stewardshipCopy dl > div {
+  display: grid;
+  grid-template-columns: 8rem minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1.1rem 0;
+  border-bottom: 1px solid rgba(255, 254, 249, 0.25);
+}
+
+.stewardshipCopy dt {
+  font-family: var(--font-display), Georgia, serif;
+  letter-spacing: 0.04em;
+}
+
+.stewardshipCopy dd {
+  margin: 0;
+  color: rgba(255, 254, 249, 0.72);
+  font-size: 0.78rem;
+}
+
+.stewardshipCopy :global(.text-link) {
+  color: var(--white);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: clamp(2rem, 5vw, 4.5rem);
+}
+
+.sectionHeading h2 {
+  margin: 0;
+  font-size: clamp(2.8rem, 5.5vw, 5.3rem);
+}
+
+.chapters {
+  padding-top: var(--section-space);
+}
+
+.chapterGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.chapter {
+  position: relative;
+  display: grid;
+  min-height: min(72vw, 780px);
+  overflow: hidden;
+  color: var(--white);
+}
+
+.chapter img {
+  object-fit: cover;
+  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.chapter:hover img {
+  transform: scale(1.025);
+}
+
+.chapterShade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(15, 20, 16, 0.76));
+}
+
+.chapter > div:last-child {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  padding: clamp(1.5rem, 4vw, 4rem);
+}
+
+.chapter h3 {
+  max-width: 11ch;
+  margin: 0.25rem 0 0.5rem;
+  font-size: clamp(2.5rem, 5vw, 5rem);
+}
+
+.chapter p,
+.chapter span {
+  margin: 0;
+  font-size: 0.68rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.chapterIndex {
+  position: absolute;
+  z-index: 1;
+  top: 2rem;
+  right: 2rem;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.8rem !important;
+}
+
+.journalGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.journalImage {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+  margin-bottom: 1.2rem;
+  background: var(--ivory-200);
+}
+
+.journalImage img {
+  object-fit: cover;
+  transition: transform 700ms ease;
+}
+
+.journalImage:hover img {
+  transform: scale(1.025);
+}
+
+.journal article > span {
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.journal h3 {
+  margin: 0.6rem 0 0.3rem;
+  font-size: clamp(1.6rem, 2.5vw, 2.4rem);
+  line-height: 1;
+}
+
+.journal article p {
+  color: var(--ink-soft);
+  font-size: 0.78rem;
+}
+
+.service {
+  padding-block: clamp(6rem, 13vw, 12rem);
+  background: var(--oxblood);
+  color: var(--white);
+  text-align: center;
+}
+
+.service h2 {
+  margin-bottom: 1.5rem;
+  font-size: clamp(3rem, 7vw, 7rem);
+}
+
+.service p {
+  max-width: 38rem;
+  margin: 0 auto 2rem;
+  color: rgba(255, 254, 249, 0.75);
+}
+
+.service :global(.eyebrow) { color: #d6c1a3; }
+.service :global(.button-secondary) { border-color: rgba(255, 254, 249, 0.6); }
+
+@media (max-width: 920px) {
+  .statement { grid-template-columns: 1fr; }
+  .statementCopy { max-width: 38rem; }
+  .stewardship { grid-template-columns: 1fr; }
+  .stewardshipVisual { min-height: 80vw; }
+  .journalGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3rem 1rem; }
+}
+
+@media (max-width: 700px) {
+  .hero { min-height: 78svh; }
+  .heroImage { object-position: 62% center; }
+  .heroShade { background: linear-gradient(180deg, rgba(18, 23, 19, 0.12), rgba(18, 23, 19, 0.82)); }
+  .heroNote { display: none; }
+  .sectionHeading { align-items: flex-start; flex-direction: column; }
+  .chapterGrid { grid-template-columns: 1fr; }
+  .chapter { min-height: 115vw; }
+  .journalGrid { grid-template-columns: 1fr; }
+  .journalImage { aspect-ratio: 4 / 5; }
+  .stewardshipCopy dl > div { grid-template-columns: 1fr; gap: 0.3rem; }
+}

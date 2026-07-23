@@ -1,0 +1,487 @@
+.catalog {
+  padding-block: clamp(2.5rem, 6vw, 5rem) var(--section-space);
+}
+
+.loading {
+  min-height: 50vh;
+  padding-block: 4rem;
+  color: var(--ink-soft);
+}
+
+.search {
+  display: grid;
+  gap: 0.65rem;
+  width: min(100%, 52rem);
+  margin-bottom: clamp(2.5rem, 5vw, 4.5rem);
+}
+
+.search > label,
+.sort span,
+.priceFields label > span {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.searchRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-bottom: 1px solid var(--ink);
+}
+
+.searchRow input {
+  min-width: 0;
+  min-height: 3.5rem;
+  padding: 0.7rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.4rem, 3vw, 2.1rem);
+}
+
+.searchRow input::placeholder {
+  color: color-mix(in srgb, var(--ink-soft) 58%, transparent);
+}
+
+.searchRow button,
+.priceFilter button,
+.clearButton {
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.searchRow button {
+  padding-inline: 1.25rem 0;
+}
+
+.toolbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-block: 0 1.35rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.resultCount {
+  margin: 0;
+  color: var(--ink-soft);
+  font-family: var(--font-body);
+  font-size: 0.8rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.7;
+}
+
+.resultCount strong {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.sort {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+}
+
+.sort select {
+  min-height: 2.65rem;
+  padding: 0 2.2rem 0 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background-color: transparent;
+  font-size: 0.75rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(13rem, 17rem) minmax(0, 1fr);
+  gap: clamp(2rem, 5vw, 5rem);
+  padding-top: 2rem;
+}
+
+.filterColumn {
+  min-width: 0;
+}
+
+.filterDisclosure {
+  position: sticky;
+  top: calc(var(--header-h) + 1.5rem);
+}
+
+.filterDisclosure summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3rem;
+  border-bottom: 1px solid var(--ink);
+  cursor: pointer;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  list-style: none;
+  text-transform: uppercase;
+}
+
+.filterDisclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.filterDisclosure summary span:last-child {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.mobileFilters {
+  display: none;
+}
+
+.mobileFilterTrigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 3rem;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.mobileFilterTrigger span:last-child {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.mobileFilterTrigger:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.mobileFilterDialog {
+  position: fixed;
+  inset: 0 0 0 auto;
+  width: min(100%, 36rem);
+  max-width: none;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--ivory-50);
+  box-shadow: -1.25rem 0 4rem rgb(20 24 17 / 0.2);
+  color: var(--ink);
+}
+
+.mobileFilterDialog::backdrop {
+  background: rgb(18 22 16 / 0.58);
+  backdrop-filter: blur(2px);
+}
+
+.mobileFilterDialog[open] {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+}
+
+.mobileDialogHeader,
+.mobileDialogFooter {
+  position: relative;
+  z-index: 1;
+  background: var(--ivory-50);
+}
+
+.mobileDialogHeader {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding: 1.4rem clamp(1.25rem, 5vw, 2.5rem);
+  border-bottom: 1px solid var(--line);
+}
+
+.mobileDialogHeader h2 {
+  margin: 0.25rem 0 0;
+  font-size: clamp(1.9rem, 7vw, 2.7rem);
+  line-height: 1;
+}
+
+.mobileDialogHeader button {
+  flex: none;
+  min-height: 2.75rem;
+  padding: 0 0 0 1rem;
+  border: 0;
+  border-bottom: 1px solid currentColor;
+  background: transparent;
+  color: var(--ink);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.mobileDialogScroll {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.mobileDialogFooter {
+  padding: 1rem clamp(1.25rem, 5vw, 2.5rem);
+  border-top: 1px solid var(--line);
+}
+
+.mobileDialogFooter button {
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.75rem 1.25rem;
+  border: 1px solid var(--olive);
+  border-radius: 0;
+  background: var(--olive);
+  color: var(--ivory-50);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.filterBody {
+  max-height: calc(100vh - var(--header-h) - 7rem);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.45rem;
+  scrollbar-width: thin;
+}
+
+.filterGroup,
+.priceFilter fieldset {
+  margin: 0;
+  padding: 1.4rem 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.filterGroup legend,
+.priceFilter legend {
+  width: 100%;
+  margin-bottom: 0.8rem;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.28rem;
+  line-height: 1.15;
+}
+
+.filterOptions {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.checkbox {
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr);
+  align-items: start;
+  gap: 0.65rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.checkbox input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.checkbox input + span {
+  width: 0.9rem;
+  height: 0.9rem;
+  margin-top: 0.15rem;
+  border: 1px solid var(--ink-soft);
+  background: transparent;
+}
+
+.checkbox input:checked + span {
+  border: 3px solid var(--ivory-50);
+  outline: 1px solid var(--olive);
+  background: var(--olive);
+}
+
+.checkbox input:focus-visible + span {
+  outline: 2px solid var(--oxblood);
+  outline-offset: 3px;
+}
+
+.priceFields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: end;
+  gap: 0.5rem;
+}
+
+.priceFields label {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.priceFields input {
+  width: 100%;
+  min-height: 2.7rem;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.75rem;
+}
+
+.priceFilter p,
+.priceNote {
+  color: var(--ink-soft);
+  font-size: 0.67rem;
+  line-height: 1.65;
+}
+
+.priceFilter p {
+  margin: 0.7rem 0;
+}
+
+.priceFilter button,
+.clearButton {
+  min-height: 2.5rem;
+  padding: 0;
+  border-bottom: 1px solid currentColor;
+}
+
+.clearButton {
+  margin-top: 1rem;
+}
+
+.clearButton:disabled {
+  opacity: 0.36;
+  cursor: not-allowed;
+}
+
+.results {
+  min-width: 0;
+}
+
+.empty {
+  display: grid;
+  justify-items: start;
+  min-height: 28rem;
+  align-content: center;
+  padding: clamp(2rem, 8vw, 7rem);
+  border: 1px solid var(--line);
+  background: var(--ivory-100);
+}
+
+.empty h2 {
+  margin-bottom: 1rem;
+  font-size: clamp(2.4rem, 5vw, 4.5rem);
+}
+
+.empty p {
+  max-width: 34rem;
+  color: var(--ink-soft);
+}
+
+.priceNote {
+  margin: 3rem 0 0;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+@media (max-width: 900px) {
+  .layout {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+
+  .filterDisclosure {
+    position: static;
+  }
+
+  .desktopFilters {
+    display: none;
+  }
+
+  .mobileFilters {
+    display: block;
+  }
+
+  .filterBody {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0 2rem;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .mobileFilterDialog .filterBody {
+    padding-inline: clamp(1.25rem, 5vw, 2.5rem);
+  }
+
+  .clearButton {
+    justify-self: start;
+    align-self: end;
+    margin-bottom: 1.4rem;
+  }
+}
+
+@media (max-width: 620px) {
+  .catalog {
+    padding-top: 2rem;
+  }
+
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .sort {
+    justify-content: space-between;
+  }
+
+  .sort select {
+    flex: 1;
+  }
+
+  .filterBody {
+    display: block;
+  }
+
+  .filterDisclosure:not([open]) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .searchRow button {
+    padding-left: 0.8rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filterDisclosure {
+    scroll-behavior: auto;
+  }
+
+  .mobileDialogScroll {
+    scroll-behavior: auto;
+  }
+}

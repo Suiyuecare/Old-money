@@ -1,0 +1,821 @@
+.intro {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(18rem, 0.65fr);
+  gap: clamp(2.5rem, 8vw, 9rem);
+  align-items: end;
+  padding-block: clamp(5rem, 10vw, 9rem);
+}
+
+.intro h1 {
+  max-width: 11ch;
+  margin: 0;
+  font-size: clamp(3.8rem, 9vw, 9rem);
+  text-wrap: balance;
+}
+
+.introCopy {
+  max-width: 35rem;
+  color: var(--ink-soft);
+}
+
+.introCopy p {
+  margin-bottom: 0;
+}
+
+.chapterList {
+  border-top: 1px solid var(--line);
+}
+
+.chapterRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(20rem, 0.85fr);
+  min-height: min(70vw, 760px);
+  border-bottom: 1px solid var(--line);
+}
+
+.chapterRow:nth-child(even) .chapterVisual {
+  order: 2;
+}
+
+.chapterVisual,
+.journalCardImage,
+.featureImage,
+.articleImage,
+.storyImage {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  background: var(--ivory-200);
+}
+
+.chapterVisual img,
+.journalCardImage img,
+.featureImage img,
+.articleImage img,
+.storyImage img {
+  object-fit: cover;
+  transition: transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.chapterVisual:hover img,
+.journalCardImage:hover img,
+.featureImage:hover img {
+  transform: scale(1.025);
+}
+
+.chapterCopy {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(2rem, 6vw, 6rem);
+}
+
+.chapterIndex {
+  color: var(--brass);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.55rem;
+}
+
+.chapterCopy h2 {
+  max-width: 9ch;
+  margin: 1rem 0 0.8rem;
+  font-size: clamp(3rem, 6vw, 6rem);
+  text-wrap: balance;
+}
+
+.chapterCopy h2 a:hover,
+.journalCard h2 a:hover,
+.journalCard h3 a:hover {
+  color: var(--oxblood);
+}
+
+.chapterCopy p {
+  max-width: 30rem;
+  color: var(--ink-soft);
+}
+
+.chapterMeta {
+  margin-top: 3rem;
+}
+
+.chapterMeta span,
+.cardMeta,
+.articleMeta {
+  color: var(--ink-soft);
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.chapterMeta a {
+  margin-top: 1.1rem;
+}
+
+.cinematicHero {
+  position: relative;
+  display: grid;
+  min-height: min(82svh, 920px);
+  overflow: hidden;
+  color: var(--white);
+}
+
+.cinematicHero > img {
+  object-fit: cover;
+}
+
+.heroVeil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(15, 19, 16, 0.06) 25%, rgba(15, 19, 16, 0.82) 100%),
+    linear-gradient(90deg, rgba(15, 19, 16, 0.28), transparent 60%);
+}
+
+.cinematicContent {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  padding-block: clamp(4rem, 8vw, 7rem);
+}
+
+.cinematicContent h1 {
+  max-width: 10ch;
+  margin: 0.4rem 0 1.25rem;
+  font-size: clamp(4rem, 10vw, 9rem);
+  text-wrap: balance;
+}
+
+.cinematicContent p {
+  max-width: 36rem;
+  margin: 0;
+  color: rgba(255, 254, 249, 0.82);
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+}
+
+.cinematicContent :global(.eyebrow),
+.articleTitle :global(.eyebrow),
+.principles :global(.eyebrow),
+.appointmentHeroCopy :global(.eyebrow),
+.successPanel :global(.eyebrow) {
+  color: #d6c1a3;
+}
+
+.collectionNarrative {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.4fr) minmax(0, 1fr);
+  gap: clamp(3rem, 10vw, 10rem);
+  align-items: start;
+}
+
+.collectionNarrative aside {
+  position: sticky;
+  top: calc(var(--header-h) + 2rem);
+}
+
+.collectionNarrative aside p {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.narrativeCopy {
+  max-width: 51rem;
+}
+
+.narrativeCopy p {
+  margin-bottom: 1.6rem;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.8rem, 3.4vw, 3.2rem);
+  line-height: 1.25;
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 2rem;
+  margin-bottom: clamp(2.2rem, 5vw, 4.5rem);
+}
+
+.sectionHeading h2 {
+  max-width: 13ch;
+  margin: 0;
+  font-size: clamp(2.8rem, 6vw, 5.8rem);
+  text-wrap: balance;
+}
+
+.productSection {
+  background: var(--ivory-100);
+}
+
+.feature {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(18rem, 0.9fr);
+  border: 1px solid var(--line);
+}
+
+.featureImage {
+  min-height: clamp(28rem, 52vw, 48rem);
+}
+
+.featureCopy {
+  align-self: center;
+  padding: clamp(2rem, 6vw, 6rem);
+}
+
+.featureCopy h2,
+.featureCopy h3 {
+  margin: 0.65rem 0 0.8rem;
+  font-size: clamp(2.7rem, 5.5vw, 5.4rem);
+  text-wrap: balance;
+}
+
+.featureCopy p {
+  max-width: 33rem;
+  color: var(--ink-soft);
+}
+
+.journalGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(3.5rem, 7vw, 7rem) clamp(1.25rem, 3vw, 3rem);
+}
+
+.journalCardImage {
+  aspect-ratio: 3 / 2;
+  margin-bottom: 1.5rem;
+}
+
+.journalCard h2,
+.journalCard h3 {
+  margin: 0.7rem 0 0.5rem;
+  font-size: clamp(2.1rem, 4vw, 4rem);
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.journalCard p {
+  max-width: 38rem;
+  color: var(--ink-soft);
+}
+
+.articleHeader {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  min-height: min(78svh, 850px);
+  background: var(--olive);
+  color: var(--white);
+}
+
+.articleTitle {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  padding: clamp(3rem, 7vw, 7rem) var(--page-pad);
+}
+
+.articleTitle h1 {
+  max-width: 10ch;
+  margin: 0.7rem 0 1.3rem;
+  font-size: clamp(3.5rem, 7vw, 7rem);
+  text-wrap: balance;
+}
+
+.articleTitle .articleMeta {
+  color: rgba(255, 254, 249, 0.7);
+}
+
+.articleImage {
+  min-height: 32rem;
+}
+
+.articleBody {
+  width: min(100% - (2 * var(--page-pad)), 790px);
+  margin-inline: auto;
+  padding-block: clamp(5rem, 10vw, 9rem);
+}
+
+.articleDek {
+  margin-bottom: clamp(3rem, 7vw, 6rem);
+  color: var(--ink-soft);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.8rem, 3.5vw, 3rem);
+  line-height: 1.25;
+}
+
+.articleProse {
+  color: #30332e;
+  font-size: clamp(1rem, 1.3vw, 1.12rem);
+  line-height: 2.15;
+}
+
+.articleProse p + p {
+  margin-top: 2rem;
+}
+
+.articleProse p:first-child::first-letter {
+  float: left;
+  margin: 0.12em 0.12em 0 0;
+  color: var(--oxblood);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 5.2em;
+  line-height: 0.72;
+}
+
+.articleFooter {
+  padding-block: clamp(4rem, 8vw, 7rem);
+  border-top: 1px solid var(--line);
+}
+
+.storyHero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.86fr) minmax(0, 1.14fr);
+  min-height: min(78svh, 880px);
+  background: var(--ivory-100);
+}
+
+.storyTitle {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  padding: clamp(3rem, 7vw, 7rem) var(--page-pad);
+}
+
+.storyTitle h1 {
+  margin: 0.5rem 0 1.5rem;
+  font-size: clamp(3.5rem, 7.5vw, 7.5rem);
+  text-wrap: balance;
+}
+
+.storyTitle p {
+  max-width: 34rem;
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.storyImage {
+  min-height: 34rem;
+}
+
+.storyBody {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.35fr) minmax(0, 0.65fr);
+  gap: clamp(3rem, 10vw, 10rem);
+  align-items: start;
+}
+
+.storyBody h2 {
+  position: sticky;
+  top: calc(var(--header-h) + 2rem);
+  margin: 0;
+  font-size: clamp(2.7rem, 5vw, 5rem);
+}
+
+.storyProse p {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(1.5rem, 2.6vw, 2.35rem);
+  line-height: 1.45;
+}
+
+.principles {
+  background: var(--olive);
+  color: var(--white);
+}
+
+.principleGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid rgba(255, 254, 249, 0.25);
+}
+
+.principle {
+  padding: clamp(2rem, 4vw, 4rem);
+  border-right: 1px solid rgba(255, 254, 249, 0.25);
+}
+
+.principle:first-child {
+  padding-left: 0;
+}
+
+.principle:last-child {
+  border-right: 0;
+}
+
+.principle span {
+  color: #d6c1a3;
+  font-size: 0.67rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.principle h3 {
+  margin: 2.5rem 0 1rem;
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.principle p {
+  color: rgba(255, 254, 249, 0.74);
+}
+
+.notice {
+  max-width: 62rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.75rem;
+  border-left: 3px solid var(--brass);
+  background: var(--ivory-100);
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+}
+
+.policyIntro {
+  padding-block: clamp(5rem, 9vw, 8rem);
+  border-bottom: 1px solid var(--line);
+  background: var(--ivory-100);
+}
+
+.policyIntro h1 {
+  max-width: 12ch;
+  margin: 0.5rem 0 1.5rem;
+  font-size: clamp(3.5rem, 8vw, 7.5rem);
+  text-wrap: balance;
+}
+
+.policyIntro p {
+  max-width: 46rem;
+  color: var(--ink-soft);
+}
+
+.policyLayout {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.3fr) minmax(0, 0.7fr);
+  gap: clamp(3rem, 10vw, 10rem);
+  align-items: start;
+}
+
+.policyNav {
+  position: sticky;
+  top: calc(var(--header-h) + 2rem);
+}
+
+.policyNav p {
+  color: var(--ink-soft);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.policyNav ul {
+  display: grid;
+  gap: 0.8rem;
+  margin: 1.4rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.policyNav a {
+  border-bottom: 1px solid transparent;
+  color: var(--ink-soft);
+  font-size: 0.84rem;
+}
+
+.policyNav a:hover {
+  border-color: currentColor;
+  color: var(--ink);
+}
+
+.policyBody {
+  max-width: 54rem;
+}
+
+.policySection {
+  scroll-margin-top: calc(var(--header-h) + 2rem);
+  padding-bottom: clamp(3rem, 6vw, 5rem);
+  border-bottom: 1px solid var(--line);
+  margin-bottom: clamp(3rem, 6vw, 5rem);
+}
+
+.policySection:last-child {
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.policySection h2 {
+  margin-bottom: 1.5rem;
+  font-size: clamp(2.3rem, 4vw, 4rem);
+}
+
+.policySection h3 {
+  margin: 2rem 0 0.75rem;
+  font-size: 1.55rem;
+}
+
+.policySection p,
+.policySection li {
+  color: #383b36;
+  line-height: 2;
+}
+
+.policySection ul,
+.policySection ol {
+  padding-left: 1.4rem;
+}
+
+.policySection li + li {
+  margin-top: 0.7rem;
+}
+
+.appointmentHero {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
+  min-height: min(75svh, 820px);
+  background: var(--oxblood);
+  color: var(--white);
+}
+
+.appointmentHeroCopy {
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  padding: clamp(3rem, 7vw, 7rem) var(--page-pad);
+}
+
+.appointmentHeroCopy h1 {
+  max-width: 10ch;
+  margin: 0.7rem 0 1.5rem;
+  font-size: clamp(3.5rem, 7vw, 7.2rem);
+  text-wrap: balance;
+}
+
+.appointmentHeroCopy p {
+  max-width: 34rem;
+  color: rgba(255, 254, 249, 0.78);
+}
+
+.appointmentHero .storyImage {
+  min-height: 34rem;
+}
+
+.serviceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+}
+
+.serviceCard {
+  padding: clamp(2rem, 4vw, 4rem);
+  border-right: 1px solid var(--line);
+}
+
+.serviceCard:first-child {
+  padding-left: 0;
+}
+
+.serviceCard:last-child {
+  border-right: 0;
+}
+
+.serviceCard span {
+  color: var(--oxblood);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+.serviceCard h2 {
+  margin: 2rem 0 1rem;
+  font-size: clamp(2rem, 3vw, 3rem);
+}
+
+.serviceCard p {
+  color: var(--ink-soft);
+}
+
+.appointmentPanel {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.4fr) minmax(0, 0.6fr);
+  gap: clamp(3rem, 9vw, 9rem);
+  align-items: start;
+}
+
+.appointmentAside h2 {
+  margin: 0 0 1.5rem;
+  font-size: clamp(2.8rem, 5vw, 5rem);
+}
+
+.appointmentAside p {
+  color: var(--ink-soft);
+}
+
+.appointmentForm {
+  display: grid;
+  gap: 1.5rem;
+  padding: clamp(1.5rem, 4vw, 3.5rem);
+  border: 1px solid var(--line);
+  background: var(--white);
+  box-shadow: var(--shadow);
+}
+
+.formRow {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+}
+
+.formNotice {
+  margin: 0;
+  padding: 1rem 1.1rem;
+  border-left: 3px solid var(--oxblood);
+  background: rgba(96, 47, 52, 0.07);
+  color: #51383a;
+  font-size: 0.82rem;
+}
+
+.consent {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.75rem;
+  align-items: start;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.consent input {
+  width: 1.1rem;
+  height: 1.1rem;
+  margin-top: 0.3rem;
+  accent-color: var(--oxblood);
+}
+
+.successPanel {
+  display: grid;
+  min-height: 32rem;
+  align-content: center;
+  padding: clamp(2rem, 6vw, 5rem);
+  border: 1px solid var(--line);
+  background: var(--olive);
+  color: var(--white);
+}
+
+.successPanel h3 {
+  max-width: 12ch;
+  margin: 0.75rem 0 1.25rem;
+  font-size: clamp(2.8rem, 5vw, 5rem);
+}
+
+.successPanel p {
+  max-width: 32rem;
+  color: rgba(255, 254, 249, 0.76);
+}
+
+.successPanel button {
+  justify-self: start;
+  margin-top: 1rem;
+  border-color: rgba(255, 254, 249, 0.6);
+}
+
+@media (max-width: 900px) {
+  .intro,
+  .collectionNarrative,
+  .storyBody,
+  .policyLayout,
+  .appointmentPanel {
+    grid-template-columns: 1fr;
+  }
+
+  .collectionNarrative aside,
+  .storyBody h2,
+  .policyNav {
+    position: static;
+  }
+
+  .chapterRow,
+  .articleHeader,
+  .storyHero,
+  .appointmentHero {
+    grid-template-columns: 1fr;
+  }
+
+  .chapterRow:nth-child(even) .chapterVisual {
+    order: 0;
+  }
+
+  .chapterVisual {
+    min-height: 70vw;
+  }
+
+  .articleImage,
+  .storyImage,
+  .appointmentHero .storyImage {
+    min-height: 62vw;
+    order: -1;
+  }
+
+  .articleTitle,
+  .storyTitle,
+  .appointmentHeroCopy {
+    min-height: 28rem;
+  }
+
+  .principleGrid,
+  .serviceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .principle,
+  .serviceCard,
+  .principle:first-child,
+  .serviceCard:first-child {
+    padding: 2.5rem 0;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .principles .principle {
+    border-color: rgba(255, 254, 249, 0.25);
+  }
+
+  .principle:last-child,
+  .serviceCard:last-child {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 680px) {
+  .intro {
+    padding-block: 4rem;
+  }
+
+  .chapterRow {
+    min-height: 0;
+  }
+
+  .chapterVisual {
+    min-height: 108vw;
+  }
+
+  .chapterCopy {
+    min-height: 30rem;
+  }
+
+  .cinematicHero {
+    min-height: 74svh;
+  }
+
+  .journalGrid,
+  .formRow {
+    grid-template-columns: 1fr;
+  }
+
+  .journalCardImage {
+    aspect-ratio: 4 / 5;
+  }
+
+  .feature {
+    grid-template-columns: 1fr;
+  }
+
+  .featureImage {
+    min-height: 115vw;
+  }
+
+  .sectionHeading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .articleHeader,
+  .storyHero,
+  .appointmentHero {
+    min-height: 0;
+  }
+
+  .articleImage,
+  .storyImage,
+  .appointmentHero .storyImage {
+    min-height: 105vw;
+  }
+
+  .articleTitle,
+  .storyTitle,
+  .appointmentHeroCopy {
+    min-height: 31rem;
+  }
+
+  .policyNav {
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chapterVisual img,
+  .journalCardImage img,
+  .featureImage img,
+  .articleImage img,
+  .storyImage img {
+    transition: none;
+  }
+}

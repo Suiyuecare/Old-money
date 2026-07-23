@@ -1,0 +1,8 @@
+packages:
+  - "."
+
+# Next 16.2.x still pins pre-advisory transitive versions. These exact
+# replacements match the versions already adopted by the Next 16.3 line.
+overrides:
+  "next>postcss": "8.5.20"
+  "next>sharp": "0.35.3"
