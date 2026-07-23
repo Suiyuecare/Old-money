@@ -61,21 +61,25 @@ no failures. The locked production dependency graph also completed
 - Client islands only for search/filtering, cart, wishlist, forms, and mock checkout
 - Request-scoped nonce CSP plus restrictive security and indexing headers
 
-## Vercel preview
+## Vercel production
 
-No preview was deployed during this delivery. The authenticated Vercel scope
-had no existing project identifiable as LIGNÉE or Quiet Luxury, and this
-repository was not linked; an unrelated project was not reused and no new
-project was created.
+The approved Vercel project `old-money`
+(`prj_DKYM3lvhibSXp1khm0Xv6m1EOv7g`) is linked to the GitHub `main` branch and
+is live at [old-money-topaz.vercel.app](https://old-money-topaz.vercel.app).
+Production sets `NEXT_PUBLIC_SITE_URL` to that stable alias, and future pushes
+to `main` trigger a new production deployment through the Vercel Git
+integration.
 
-After an operator explicitly identifies an approved existing project, this
-repository is ready for the pinned CLI workflow:
+The project can be relinked and inspected with the pinned CLI:
 
 ```bash
-pnpm dlx vercel@56.5.0 link --project <approved-existing-project>
-pnpm dlx vercel@56.5.0 deploy
+pnpm dlx vercel@56.5.0 link --yes \
+  --project prj_DKYM3lvhibSXp1khm0Xv6m1EOv7g \
+  --scope entrepreneur-9585s-projects
+pnpm dlx vercel@56.5.0 inspect old-money-topaz.vercel.app \
+  --scope entrepreneur-9585s-projects
 ```
 
-Set `NEXT_PUBLIC_SITE_URL` to the protected preview URL if stable canonical
-Open Graph URLs are required. Keep Vercel Deployment Protection enabled; never
-add commerce credentials to this prototype.
+The production site remains visibly marked as a non-transactional prototype,
+uses `noindex`, and contains no commerce credentials. Do not connect payment or
+PII services without completing the production review in `SECURITY.md`.
