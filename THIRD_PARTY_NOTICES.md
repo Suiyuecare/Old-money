@@ -14,7 +14,13 @@ The generated images must be replaced or re-reviewed before real goods are sold.
 
 The display face is **Cormorant Garamond**, loaded through `next/font/google` using the Latin subset. Cormorant Garamond is distributed by its upstream authors under the SIL Open Font License; retain the upstream font metadata and license when redistributing font files.
 
-Traditional Chinese and interface copy use a system font stack that may resolve to PingFang TC, Noto Sans TC, Microsoft JhengHei, or a platform sans-serif. This repository does not intentionally redistribute those system fallback fonts; their availability and licensing are supplied by the visitor's operating system or browser environment.
+Traditional Chinese copy uses a self-hosted, 1,068-character subset of **Noto
+Serif TC**, derived from the official Google Fonts variable TTF. Noto Serif TC
+is distributed under the SIL Open Font License; the upstream license is retained
+at [`app/fonts/OFL-Noto-Serif-TC.txt`](app/fonts/OFL-Noto-Serif-TC.txt). The
+subset covers all Traditional Chinese characters and CJK punctuation present in
+the application source at delivery time. Unavailable or newly entered glyphs
+fall back to Songti TC, PMingLiU, MingLiU, or the platform serif family.
 
 ## Software packages
 

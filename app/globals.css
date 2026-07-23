@@ -11,7 +11,8 @@
   --white: #fffef9;
   --line: rgba(28, 30, 27, 0.18);
   --shadow: 0 18px 50px rgba(28, 30, 27, 0.1);
-  --font-body: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  --font-display: var(--font-display-latin), var(--font-ming), serif;
+  --font-body: "Helvetica Neue", Arial, var(--font-ming), serif;
   --page-pad: clamp(1.25rem, 4vw, 5rem);
   --section-space: clamp(5rem, 10vw, 9rem);
   --header-h: 4.75rem;

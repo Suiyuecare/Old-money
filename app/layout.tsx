@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond } from "next/font/google";
+import localFont from "next/font/local";
 import { headers } from "next/headers";
 import { StoreProvider } from "@/components/store/StoreProvider";
 import { CartDrawer } from "@/components/store/CartDrawer";
@@ -11,10 +12,21 @@ import "@/components/site/site.css";
 import "./globals.css";
 
 const cormorant = Cormorant_Garamond({
-  variable: "--font-display",
+  variable: "--font-display-latin",
   subsets: ["latin"],
   display: "swap",
   weight: ["400", "500", "600"],
+});
+
+const ming = localFont({
+  src: "./fonts/lignee-ming-subset.woff2",
+  variable: "--font-ming",
+  display: "swap",
+  weight: "200 900",
+  style: "normal",
+  preload: true,
+  adjustFontFallback: false,
+  fallback: ["Songti TC", "PMingLiU", "MingLiU", "serif"],
 });
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
@@ -74,7 +86,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   await headers();
 
   return (
-    <html lang="zh-Hant" className={cormorant.variable} data-scroll-behavior="smooth">
+    <html
+      lang="zh-Hant"
+      className={`${cormorant.variable} ${ming.variable}`}
+      data-scroll-behavior="smooth"
+    >
       <body>
         <StoreProvider>
           <a className="skip-link" href="#main-content">
