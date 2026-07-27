@@ -1,4 +1,4 @@
-import { products } from "@/lib/catalog";
+import { categoryMetadata, products } from "@/lib/catalog";
 import { estateCollections, estateJournalEntries } from "@/lib/editorial";
 
 export type RouteKind =
@@ -88,6 +88,18 @@ const productRoutes: readonly RouteManifestEntry[] = products.map((product) => (
   sourceId: product.id,
 }));
 
+const categoryRoutes: readonly RouteManifestEntry[] = categoryMetadata.map(
+  (category) => ({
+    id: `category-${category.id}`,
+    path: `/category/${category.routeSegment}`,
+    label: category.label,
+    kind: "catalog",
+    expectedStatus: 200,
+    visualQa: true,
+    sourceId: category.id,
+  }),
+);
+
 const collectionRoutes: readonly RouteManifestEntry[] = estateCollections.map(
   (collection) => ({
     id: `collection-${collection.id}`,
@@ -127,6 +139,7 @@ const notFoundRoute: RouteManifestEntry = {
  */
 export const routeManifest: readonly RouteManifestEntry[] = Object.freeze([
   ...staticRoutes,
+  ...categoryRoutes,
   ...productRoutes,
   ...collectionRoutes,
   ...journalRoutes,

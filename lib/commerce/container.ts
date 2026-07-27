@@ -1,6 +1,7 @@
+import { cache } from "react";
+
 import { getCommerceEnvironment } from "./config";
 import {
-  MockCatalogRepository,
   MockCommerceRepository,
   MockOperationsRepository,
 } from "./mock-repositories";
@@ -9,6 +10,10 @@ import type {
   CommerceRepository,
   OperationsRepository,
 } from "./repositories";
+import {
+  createCatalogRepositoryFromEnvironment,
+  type CatalogRepository as RuntimeCatalogRepository,
+} from "@/lib/catalog-runtime";
 import type {
   EmailProvider,
   InvoiceProvider,
@@ -33,6 +38,25 @@ export interface CommerceContainer {
 }
 
 let demoContainer: CommerceContainer | undefined;
+let catalogRepository: RuntimeCatalogRepository | undefined;
+
+/**
+ * Catalog selection is independent from transactional commerce so a
+ * production-disabled deployment can read published content while checkout
+ * remains fail closed.
+ */
+export function getCatalogRepository(): RuntimeCatalogRepository {
+  catalogRepository ??= createCatalogRepositoryFromEnvironment();
+  return catalogRepository;
+}
+
+/**
+ * One immutable publication snapshot per React server render. Layouts and
+ * pages therefore cannot accidentally mix catalog revisions.
+ */
+export const getCatalogSnapshot = cache(
+  async () => getCatalogRepository().readSnapshot(),
+);
 
 /**
  * Clients are initialized lazily at request time. A configured production mode
@@ -47,7 +71,7 @@ export function getCommerceContainer(): CommerceContainer {
     );
   }
   demoContainer ??= Object.freeze({
-    catalog: new MockCatalogRepository(),
+    catalog: getCatalogRepository(),
     commerce: new MockCommerceRepository(),
     operations: new MockOperationsRepository(),
     payment: new MockPaymentGateway(),
@@ -67,9 +91,10 @@ export function resetCommerceContainerForTests(input?: {
   if (process.env.NODE_ENV !== "test") {
     throw new Error("The commerce container may only be reset by tests.");
   }
+  catalogRepository = undefined;
   demoContainer = input
     ? Object.freeze({
-        catalog: new MockCatalogRepository(),
+        catalog: getCatalogRepository(),
         commerce: new MockCommerceRepository(input),
         operations: new MockOperationsRepository(),
         payment: new MockPaymentGateway(),

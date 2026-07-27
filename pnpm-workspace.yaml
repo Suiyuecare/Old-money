@@ -6,9 +6,11 @@ allowBuilds:
 
 minimumReleaseAgeExclude:
   - react-email@6.9.1
+  - minimatch@10.2.6
 
-# Next 16.2.x still pins pre-advisory transitive versions. These exact
-# replacements match the versions already adopted by the Next 16.3 line.
+# Audited transitive replacements for upstream packages that still resolve
+# pre-advisory versions within their declared ranges.
 overrides:
+  "glob>minimatch": "10.2.6"
   "next>postcss": "8.5.20"
   "next>sharp": "0.35.3"

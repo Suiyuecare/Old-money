@@ -3,26 +3,28 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useStore } from "@/components/store/StoreProvider";
-import type { Product } from "@/lib/catalog";
-import {
-  categoryMetadata,
-  collections,
-  formatTwd,
-  getProductPriceRange,
-} from "@/lib/catalog";
+import type { PublishedProduct } from "@/lib/catalog-runtime";
+import { formatTwd } from "@/lib/catalog";
 import styles from "./products.module.css";
 
-export function ProductCard({ product, priority = false }: { product: Product; priority?: boolean }) {
-  const { hydrated, isWishlisted, toggleWishlist } = useStore();
-  const range = getProductPriceRange(product.id);
+export function ProductCard({ product, priority = false }: { product: PublishedProduct; priority?: boolean }) {
+  const {
+    catalog,
+    categories,
+    chapters,
+    hydrated,
+    isWishlisted,
+    toggleWishlist,
+  } = useStore();
+  const range = catalog.getProductPriceRange(product.id);
   const price = range
     ? range.min === range.max
       ? formatTwd(range.min)
       : `${formatTwd(range.min)} – ${formatTwd(range.max)}`
     : formatTwd(product.basePriceTwd);
   const wishlisted = hydrated && isWishlisted(product.id);
-  const category = categoryMetadata.find((item) => item.id === product.category);
-  const collection = collections.find((item) => item.id === product.collectionId);
+  const category = categories.find((item) => item.code === product.category);
+  const collection = chapters.find((item) => item.code === product.collectionId);
   const colorOptions = product.optionAxes.find((axis) => axis.key === "color")?.values ?? [];
 
   return (
@@ -38,7 +40,7 @@ export function ProductCard({ product, priority = false }: { product: Product; p
             className={styles.image}
           />
           <span className={styles.collection}>
-            {category?.englishLabel ?? "LIGNÉE"} · {collection?.name ?? "Estate Edit"}
+            {category?.nameEn ?? "LIGNÉE"} · {collection?.titleEn ?? "Estate Edit"}
           </span>
         </Link>
         <button

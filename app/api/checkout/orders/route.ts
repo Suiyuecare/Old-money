@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     if (environment.mode !== "demo") {
       throw new CommerceDomainError(
         "ORDER_CREATION_DISABLED",
-        "Production order creation is disabled until the full confirmation-token and OTP database commands are deployed.",
+        "Production order creation is disabled until confirmation/OTP commands atomically persist the encrypted contact, Email lookup HMAC, and opaque order-access recipient reference.",
         503,
       );
     }
@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         409,
       );
     }
-    const currentQuote = createCurrentQuote(body.cart.lines);
+    const currentQuote = await createCurrentQuote(body.cart.lines);
     const quoteIsStale = body.cart.lines.some((submittedLine) => {
       const currentLine = currentQuote.lines.find(
         (line) => line.skuId === submittedLine.skuId,

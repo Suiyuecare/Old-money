@@ -8,8 +8,23 @@ begin
   if has_schema_privilege('authenticated', 'commerce_private', 'usage') then
     raise exception 'authenticated can use commerce_private';
   end if;
+  if has_schema_privilege('authenticated', 'ops_private', 'usage') then
+    raise exception 'authenticated can use ops_private directly';
+  end if;
   if has_function_privilege('anon', 'api.catalog_read_all()', 'execute') then
     raise exception 'anon can execute catalog RPC';
+  end if;
+  if has_function_privilege(
+    'storefront_rpc_caller',
+    'api.catalog_read_all()',
+    'execute'
+  ) then
+    raise exception 'storefront can bypass publication snapshots';
+  end if;
+  if to_regprocedure(
+    'ops_private.is_admin_authorized(text[],boolean)'
+  ) is not null then
+    raise exception 'obsolete Storage authorization bridge still exists';
   end if;
   if has_function_privilege(
     'storefront_rpc_caller',

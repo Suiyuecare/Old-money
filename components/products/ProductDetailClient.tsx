@@ -13,24 +13,22 @@ import {
 import { ProductGrid } from "@/components/products/ProductGrid";
 import { useStore } from "@/components/store/StoreProvider";
 import {
-  findSkuForOptions,
   formatTwd,
-  getCategoryById,
-  getCollectionById,
-  getEffectiveSkuPrice,
-  getMaterialConceptLabel,
-  getProductPriceRange,
-  getSkuById,
-  type Product,
+  materialConceptMetadata,
   type ProductOptionAxis,
   type ProductOptionKey,
 } from "@/lib/catalog";
+import type {
+  PublishedMedia,
+  PublishedProduct,
+} from "@/lib/catalog-runtime";
 
 import styles from "./product-detail.module.css";
 
 interface ProductDetailClientProps {
-  readonly product: Product;
-  readonly relatedProducts: readonly Product[];
+  readonly product: PublishedProduct;
+  readonly relatedProducts: readonly PublishedProduct[];
+  readonly media: readonly PublishedMedia[];
 }
 
 type SelectedOptions = Partial<Record<ProductOptionKey, string>>;
@@ -38,12 +36,26 @@ type SelectedOptions = Partial<Record<ProductOptionKey, string>>;
 const optionGroupId = (productId: string, axis: ProductOptionAxis) =>
   `option-${productId}-${axis.key}`;
 
+const materialLabel = (value: string): string =>
+  materialConceptMetadata[
+    value as keyof typeof materialConceptMetadata
+  ]?.label ??
+  value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+
 export function ProductDetailClient({
+  media,
   product,
   relatedProducts,
 }: ProductDetailClientProps) {
   const {
     addToCart,
+    catalog,
+    categories,
+    chapters,
     hydrated,
     isWishlisted,
     toggleWishlist,
@@ -54,12 +66,16 @@ export function ProductDetailClient({
   const [addedSkuId, setAddedSkuId] = useState<string | null>(null);
   const errorSummaryRef = useRef<HTMLDivElement>(null);
 
-  const collection = getCollectionById(product.collectionId);
-  const category = getCategoryById(product.category);
-  const priceRange = getProductPriceRange(product.id);
+  const collection = chapters.find(
+    (candidate) => candidate.code === product.collectionId,
+  );
+  const category = categories.find(
+    (candidate) => candidate.code === product.category,
+  );
+  const priceRange = catalog.getProductPriceRange(product.id);
   const selectedSku = useMemo(
-    () => findSkuForOptions(product.id, selectedOptions),
-    [product.id, selectedOptions],
+    () => catalog.findSkuForOptions(product.id, selectedOptions),
+    [catalog, product.id, selectedOptions],
   );
   const missingAxes = product.optionAxes.filter(
     (axis) => selectedOptions[axis.key] === undefined,
@@ -68,10 +84,13 @@ export function ProductDetailClient({
   const hasUnsupportedCombination = hasEverySelection && selectedSku === undefined;
   const hasValidationErrors = missingAxes.length > 0 || hasUnsupportedCombination;
   const wishlisted = hydrated && isWishlisted(product.id);
+  const detailMedia = media.filter(
+    (item) => item.role === "detail" || item.role === "gallery",
+  );
 
   const priceText = (() => {
     if (selectedSku) {
-      const exactPrice = getEffectiveSkuPrice(selectedSku);
+      const exactPrice = catalog.getEffectiveSkuPrice(selectedSku);
       return exactPrice === undefined ? formatTwd(product.basePriceTwd) : formatTwd(exactPrice);
     }
     if (!priceRange) return formatTwd(product.basePriceTwd);
@@ -80,7 +99,7 @@ export function ProductDetailClient({
       : formatTwd(priceRange.min);
   })();
 
-  const picturedSku = getSkuById(product.image.picturedSkuId);
+  const picturedSku = catalog.getSkuById(product.image.picturedSkuId);
   const colorAxis = product.optionAxes.find((axis) => axis.key === "color");
   const picturedColorValue = picturedSku?.options.color;
   const picturedColorLabel = colorAxis?.values.find(
@@ -101,7 +120,10 @@ export function ProductDetailClient({
     setSubmitted(true);
 
     // The catalog resolver is the sole authority for a purchasable option set.
-    const canonicalSku = findSkuForOptions(product.id, selectedOptions);
+    const canonicalSku = catalog.findSkuForOptions(
+      product.id,
+      selectedOptions,
+    );
     if (!canonicalSku) {
       setValidationAttempt((attempt) => attempt + 1);
       return;
@@ -151,7 +173,7 @@ export function ProductDetailClient({
 
         <div className={styles.purchaseColumn}>
           <p className="eyebrow">
-            {collection?.name ?? "The Lignée Estate"}
+            {collection?.titleEn ?? "The Lignée Estate"}
           </p>
           <h1>{product.name}</h1>
           <p className={styles.subtitle}>{product.subtitle}</p>
@@ -315,6 +337,32 @@ export function ProductDetailClient({
         </div>
       </section>
 
+      {detailMedia.length > 0 ? (
+        <section
+          aria-label={`${product.subtitle} 商品圖輯`}
+          className={styles.gallery}
+        >
+          {detailMedia.map((item) => (
+            <figure
+              className={styles.galleryItem}
+              key={`${item.assetId}-${item.role}-${item.sortOrder}`}
+            >
+              <Image
+                alt={item.alt}
+                className={styles.productImage}
+                fill
+                sizes="(max-width: 760px) 100vw, 50vw"
+                src={item.path}
+                style={{
+                  objectPosition:
+                    `${item.focalX * 100}% ${item.focalY * 100}%`,
+                }}
+              />
+            </figure>
+          ))}
+        </section>
+      ) : null}
+
       <section className={styles.information} aria-labelledby="product-information-title">
         <div className={styles.informationIntro}>
           <span className="eyebrow">In quiet detail</span>
@@ -330,14 +378,13 @@ export function ProductDetailClient({
               <p>
                 概念材質：
                 {product.materialConcepts
-                  .map((material) => getMaterialConceptLabel(material))
-                  .filter((label): label is string => label !== undefined)
+                  .map(materialLabel)
                   .join("、")}
                 。所有材質資訊均待實際供應鏈與打樣確認。
               </p>
               <p>
-                系列：{collection?.name ?? "LIGNÉE Estate Collection"} · 分類：
-                {category?.label ?? "選品"}
+                系列：{collection?.titleEn ?? "LIGNÉE Estate Collection"} · 分類：
+                {category?.nameZh ?? "選品"}
               </p>
             </div>
           </details>

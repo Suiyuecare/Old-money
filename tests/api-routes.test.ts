@@ -6,7 +6,7 @@ import { POST as createCheckout } from "@/app/api/checkout/sessions/route";
 import {
   GET as customerReturnGet,
   POST as customerReturnPost,
-} from "@/app/checkout/return/route";
+} from "@/app/(storefront)/checkout/return/route";
 import { GET as commerceHealth } from "@/app/api/health/commerce/route";
 import { POST as createCanary } from "@/app/api/internal/canary/checkout/route";
 import { resetCommerceContainerForTests } from "@/lib/commerce/container";
@@ -29,6 +29,9 @@ const request = (path: string, body: unknown, extraHeaders = headers) =>
   });
 
 const priorMode = process.env.LIGNEE_MODE;
+const priorCatalogSource = process.env.LIGNEE_CATALOG_SOURCE;
+const priorSupabaseUrl = process.env.SUPABASE_URL;
+const priorSupabasePublishableKey = process.env.SUPABASE_PUBLISHABLE_KEY;
 
 interface QuoteBody {
   readonly quoteDigest: string;
@@ -63,6 +66,7 @@ const orderBodyFromQuote = (
 
 beforeEach(() => {
   delete process.env.LIGNEE_MODE;
+  delete process.env.LIGNEE_CATALOG_SOURCE;
   resetCommerceContainerForTests();
   resetDemoPublicCommandStateForTests();
 });
@@ -70,6 +74,18 @@ beforeEach(() => {
 afterEach(() => {
   if (priorMode === undefined) delete process.env.LIGNEE_MODE;
   else process.env.LIGNEE_MODE = priorMode;
+  if (priorCatalogSource === undefined) {
+    delete process.env.LIGNEE_CATALOG_SOURCE;
+  } else {
+    process.env.LIGNEE_CATALOG_SOURCE = priorCatalogSource;
+  }
+  if (priorSupabaseUrl === undefined) delete process.env.SUPABASE_URL;
+  else process.env.SUPABASE_URL = priorSupabaseUrl;
+  if (priorSupabasePublishableKey === undefined) {
+    delete process.env.SUPABASE_PUBLISHABLE_KEY;
+  } else {
+    process.env.SUPABASE_PUBLISHABLE_KEY = priorSupabasePublishableKey;
+  }
 });
 
 describe("commerce route boundaries", () => {
@@ -106,6 +122,32 @@ describe("commerce route boundaries", () => {
     expect(unavailable.status).toBe(409);
     expect(await unavailable.json()).toMatchObject({
       error: { code: "SKU_UNAVAILABLE" },
+    });
+  });
+
+  it("fails closed instead of falling back to static prices when the database catalog is unavailable", async () => {
+    process.env.LIGNEE_CATALOG_SOURCE = "database";
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_PUBLISHABLE_KEY;
+    resetCommerceContainerForTests();
+
+    const response = await quote(
+      request("/api/catalog/quote", {
+        lines: [
+          {
+            skuId: "field-house-polo-s-estate-olive",
+            quantity: 1,
+          },
+        ],
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: {
+        code: "COMMERCE_UNAVAILABLE",
+        message: "Commerce service is unavailable and remains fail closed.",
+      },
     });
   });
 

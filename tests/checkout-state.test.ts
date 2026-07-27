@@ -10,7 +10,7 @@ import {
   useCheckoutSession,
   validatePreviewDetails,
   type CompletionSnapshot,
-} from "@/app/checkout/CheckoutSessionProvider";
+} from "@/app/(storefront)/checkout/CheckoutSessionProvider";
 
 const COMPLETION: CompletionSnapshot = {
   demoOrderPublicId: "DEMO-000001",

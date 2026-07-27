@@ -29,6 +29,7 @@ export const canCreateCheckout = (
         [environment.controls.checkoutEnabled, "checkout_enabled is false"],
         [environment.providerCredentialsConfigured, "payment credentials are unavailable"],
         [environment.databaseConfigured, "production database binding is unavailable"],
+        [environment.operationalFactsConfigured, "company and customer-service facts are incomplete"],
       ]);
 
 export const canAcceptPaymentCallback = (
@@ -92,7 +93,6 @@ export const canServePublicMedia = (
     [asset.revisionMatches, "media safety revision mismatch"],
     [asset.status === "live_approved", "asset is not live_approved"],
     [!asset.tombstoned, "asset SHA is tombstoned"],
-    [!environment.controls.mediaEmergencyNoCache, "media emergency mode is active"],
   ]);
 
 export const canCallPrivilegedBroker = (
@@ -142,4 +142,3 @@ export const canCreateProductionCanary = (
     [context.inFlightCount === 0, "another canary is in flight"],
     [context.dailyCount < 2, "daily canary limit reached"],
   ]);
-

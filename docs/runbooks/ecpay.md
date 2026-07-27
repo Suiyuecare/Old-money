@@ -5,11 +5,16 @@
 - Hosted redirect only; `ChoosePayment=Credit`; no card data at LIGNÉE.
 - Apple Pay off sends contract-tested `IgnorePayment=ApplePay`.
 - Return URL displays confirmation-in-progress only.
-- The implemented callback route remains unavailable; it cannot persist or mark
-  payment success. A future callback must pass signature, merchant, trade number
-  and amount and create a durable inbox/verification marker.
-- Future QueryTradeInfo reconciliation must append an authenticated receipt
-  before applying exactly one receipt to sale/invoice/fulfillment.
+- The callback verifies CheckMacValue and merchant/trade identity, stores a
+  redacted deduplicated provider event, and atomically enqueues a
+  `payment.query` reconciliation job before returning the exact `1|OK`
+  acknowledgement. Any durable write/enqueue failure is not acknowledged.
+- QueryTradeInfo is the authority for applying payment. Callback data alone
+  never marks an order paid, sells stock, issues an invoice, or starts
+  fulfillment.
+- The reconciliation scheduler leases only `safe_query` jobs in bounded
+  batches. Five inconclusive queries retain their evidence and move to manual
+  review; it cannot claim or redispatch a refund, invoice, or shipment effect.
 - A second charge becomes duplicate receipt; a charge after release becomes paid-after-release. Both use the guarded exact-full-receipt anomaly refund.
 
 ## Unknown outcomes

@@ -12,14 +12,18 @@ import {
 } from "react";
 
 import {
-  getEffectiveSkuPrice,
-  getProductById,
-  getSkuById,
-  type Product,
-  type ProductImage,
   type ProductOptionKey,
-  type SKU,
 } from "@/lib/catalog";
+import {
+  createCatalogSnapshotIndex,
+  createEstateNo01Snapshot,
+  type CatalogSnapshotIndex,
+  type PublicCatalogSnapshot,
+  type PublishedCategory,
+  type PublishedChapter,
+  type PublishedProduct,
+  type PublishedSKU,
+} from "@/lib/catalog-runtime";
 
 export const CART_STORAGE_KEY = "lignee:cart";
 export const WISHLIST_STORAGE_KEY = "lignee:wishlist";
@@ -70,7 +74,7 @@ export interface CartLineViewModel {
   readonly productSlug: string;
   readonly name: string;
   readonly subtitle: string;
-  readonly image: ProductImage;
+  readonly image: PublishedProduct["image"];
   readonly imagePath: string;
   readonly imageAlt: string;
   readonly options: readonly CartLineOptionViewModel[];
@@ -79,11 +83,14 @@ export interface CartLineViewModel {
   /** Alias for consumers that use the shorter price name. */
   readonly priceTwd: number;
   readonly lineTotalTwd: number;
-  readonly sku: SKU;
-  readonly product: Product;
+  readonly sku: PublishedSKU;
+  readonly product: PublishedProduct;
 }
 
 export interface StoreContextValue {
+  readonly catalog: CatalogSnapshotIndex;
+  readonly categories: readonly PublishedCategory[];
+  readonly chapters: readonly PublishedChapter[];
   /** False during SSR and the first client render. */
   readonly hydrated: boolean;
   readonly cartLines: readonly CartLineViewModel[];
@@ -97,7 +104,7 @@ export interface StoreContextValue {
   readonly freeShippingThresholdTwd: number;
   readonly amountUntilFreeShippingTwd: number;
   readonly wishlistProductIds: readonly string[];
-  readonly wishlistProducts: readonly Product[];
+  readonly wishlistProducts: readonly PublishedProduct[];
   readonly wishlistCount: number;
   readonly announcement: string;
   readonly announcementId: number;
@@ -130,6 +137,9 @@ const EMPTY_CART: PersistedCartState = { version: 1, lines: [] };
 const EMPTY_WISHLIST: PersistedWishlistState = { version: 1, productIds: [] };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
+const estateNo01Catalog = createCatalogSnapshotIndex(
+  createEstateNo01Snapshot(),
+);
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
@@ -148,7 +158,10 @@ const parseJson = (raw: string): unknown => {
   }
 };
 
-export const decodeCart = (raw: string | null): DecodeResult<PersistedCartState> => {
+export const decodeCart = (
+  raw: string | null,
+  catalog: CatalogSnapshotIndex = estateNo01Catalog,
+): DecodeResult<PersistedCartState> => {
   if (raw === null) return { valid: true, value: EMPTY_CART, repairedEntries: 0 };
 
   const candidate = parseJson(raw);
@@ -164,14 +177,16 @@ export const decodeCart = (raw: string | null): DecodeResult<PersistedCartState>
       !isRecord(candidateLine) ||
       typeof candidateLine.skuId !== "string" ||
       !isValidQuantity(candidateLine.quantity) ||
-      getSkuById(candidateLine.skuId) === undefined
+      catalog.getSkuById(candidateLine.skuId) === undefined
     ) {
       repairedEntries += 1;
       continue;
     }
 
-    const sku = getSkuById(candidateLine.skuId);
-    const unitPriceTwd = sku ? getEffectiveSkuPrice(sku) : undefined;
+    const sku = catalog.getSkuById(candidateLine.skuId);
+    const unitPriceTwd = sku
+      ? catalog.getEffectiveSkuPrice(sku)
+      : undefined;
     if (!sku || unitPriceTwd === undefined) {
       repairedEntries += 1;
       continue;
@@ -220,7 +235,10 @@ export const decodeCart = (raw: string | null): DecodeResult<PersistedCartState>
   };
 };
 
-export const decodeWishlist = (raw: string | null): DecodeResult<PersistedWishlistState> => {
+export const decodeWishlist = (
+  raw: string | null,
+  catalog: CatalogSnapshotIndex = estateNo01Catalog,
+): DecodeResult<PersistedWishlistState> => {
   if (raw === null) return { valid: true, value: EMPTY_WISHLIST, repairedEntries: 0 };
 
   const candidate = parseJson(raw);
@@ -232,7 +250,10 @@ export const decodeWishlist = (raw: string | null): DecodeResult<PersistedWishli
   let repairedEntries = 0;
 
   for (const productId of candidate.productIds) {
-    if (typeof productId !== "string" || getProductById(productId) === undefined) {
+    if (
+      typeof productId !== "string" ||
+      catalog.getProductById(productId) === undefined
+    ) {
       repairedEntries += 1;
       continue;
     }
@@ -278,12 +299,13 @@ const writeStorage = (key: string, value: unknown): boolean => {
 
 export const resolveCartLine = (
   line: PersistedCartLine,
+  catalog: CatalogSnapshotIndex = estateNo01Catalog,
 ): CartLineViewModel | undefined => {
-  const sku = getSkuById(line.skuId);
+  const sku = catalog.getSkuById(line.skuId);
   if (!sku) return undefined;
 
-  const product = getProductById(sku.productId);
-  const unitPriceTwd = getEffectiveSkuPrice(sku);
+  const product = catalog.getProductById(sku.productId);
+  const unitPriceTwd = catalog.getEffectiveSkuPrice(sku);
   if (!product || unitPriceTwd === undefined) return undefined;
 
   const options = product.optionAxes.flatMap<CartLineOptionViewModel>((axis) => {
@@ -315,7 +337,16 @@ export const resolveCartLine = (
   };
 };
 
-export function StoreProvider({ children }: PropsWithChildren) {
+export function StoreProvider({
+  children,
+  catalogSnapshot,
+}: PropsWithChildren<{
+  readonly catalogSnapshot: PublicCatalogSnapshot;
+}>) {
+  const catalog = useMemo(
+    () => createCatalogSnapshotIndex(catalogSnapshot),
+    [catalogSnapshot],
+  );
   const [cartState, setCartState] = useState<PersistedCartState>(EMPTY_CART);
   const [wishlistState, setWishlistState] =
     useState<PersistedWishlistState>(EMPTY_WISHLIST);
@@ -365,7 +396,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       }
 
       if (event.key === CART_STORAGE_KEY) {
-        const decoded = decodeCart(event.newValue);
+        const decoded = decodeCart(event.newValue, catalog);
         if (!decoded.valid) {
           announce("另一個分頁送出的購物車資料無效，已保留目前內容。");
           return;
@@ -383,7 +414,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       }
 
       if (event.key === WISHLIST_STORAGE_KEY) {
-        const decoded = decodeWishlist(event.newValue);
+        const decoded = decodeWishlist(event.newValue, catalog);
         if (!decoded.valid) {
           announce("另一個分頁送出的收藏資料無效，已保留目前內容。");
           return;
@@ -407,8 +438,8 @@ export function StoreProvider({ children }: PropsWithChildren) {
 
       const storedCart = readStorage(CART_STORAGE_KEY);
       const storedWishlist = readStorage(WISHLIST_STORAGE_KEY);
-      const decodedCart = decodeCart(storedCart.raw);
-      const decodedWishlist = decodeWishlist(storedWishlist.raw);
+      const decodedCart = decodeCart(storedCart.raw, catalog);
+      const decodedWishlist = decodeWishlist(storedWishlist.raw, catalog);
 
       commitCart(decodedCart.valid ? decodedCart.value : EMPTY_CART);
       commitWishlist(decodedWishlist.valid ? decodedWishlist.value : EMPTY_WISHLIST);
@@ -431,7 +462,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       active = false;
       window.removeEventListener("storage", handleStorage);
     };
-  }, [announce, commitCart, commitWishlist]);
+  }, [announce, catalog, commitCart, commitWishlist]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -466,9 +497,13 @@ export function StoreProvider({ children }: PropsWithChildren) {
         return false;
       }
 
-      const sku = getSkuById(skuId);
-      const product = sku ? getProductById(sku.productId) : undefined;
-      const unitPriceTwd = sku ? getEffectiveSkuPrice(sku) : undefined;
+      const sku = catalog.getSkuById(skuId);
+      const product = sku
+        ? catalog.getProductById(sku.productId)
+        : undefined;
+      const unitPriceTwd = sku
+        ? catalog.getEffectiveSkuPrice(sku)
+        : undefined;
       if (!sku || !product || unitPriceTwd === undefined) {
         announce("此商品規格已不存在，未加入購物車。");
         return false;
@@ -506,7 +541,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       announce(`${product.name} 已加入購物車，共 ${nextQuantity} 件。`);
       return true;
     },
-    [announce, commitCart, hydrated],
+    [announce, catalog, commitCart, hydrated],
   );
 
   const updateCartQuantity = useCallback(
@@ -525,10 +560,12 @@ export function StoreProvider({ children }: PropsWithChildren) {
           line.skuId === skuId ? { ...line, quantity } : line,
         ),
       });
-      const productName = getProductById(getSkuById(skuId)?.productId ?? "")?.name ?? "商品";
+      const productName =
+        catalog.getProductById(catalog.getSkuById(skuId)?.productId ?? "")
+          ?.name ?? "商品";
       announce(`${productName} 的數量已更新為 ${quantity} 件。`);
     },
-    [announce, commitCart],
+    [announce, catalog, commitCart],
   );
 
   const removeFromCart = useCallback(
@@ -536,14 +573,16 @@ export function StoreProvider({ children }: PropsWithChildren) {
       const current = cartStateRef.current;
       if (!current.lines.some((line) => line.skuId === skuId)) return;
 
-      const productName = getProductById(getSkuById(skuId)?.productId ?? "")?.name ?? "商品";
+      const productName =
+        catalog.getProductById(catalog.getSkuById(skuId)?.productId ?? "")
+          ?.name ?? "商品";
       commitCart({
         version: 1,
         lines: current.lines.filter((line) => line.skuId !== skuId),
       });
       announce(`${productName} 已從購物車移除。`);
     },
-    [announce, commitCart],
+    [announce, catalog, commitCart],
   );
 
   const clearCart = useCallback(() => {
@@ -565,7 +604,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
         return false;
       }
 
-      const product = getProductById(productId);
+      const product = catalog.getProductById(productId);
       if (!product) {
         announce("此商品已不存在，未加入收藏。");
         return false;
@@ -578,7 +617,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       announce(`${product.name} 已加入收藏。`);
       return true;
     },
-    [announce, commitWishlist, hydrated],
+    [announce, catalog, commitWishlist, hydrated],
   );
 
   const removeFromWishlist = useCallback(
@@ -590,9 +629,11 @@ export function StoreProvider({ children }: PropsWithChildren) {
         version: 1,
         productIds: current.productIds.filter((id) => id !== productId),
       });
-      announce(`${getProductById(productId)?.name ?? "商品"} 已從收藏移除。`);
+      announce(
+        `${catalog.getProductById(productId)?.name ?? "商品"} 已從收藏移除。`,
+      );
     },
-    [announce, commitWishlist],
+    [announce, catalog, commitWishlist],
   );
 
   const toggleWishlist = useCallback(
@@ -617,19 +658,19 @@ export function StoreProvider({ children }: PropsWithChildren) {
   const cartLines = useMemo(
     () =>
       cartState.lines.flatMap<CartLineViewModel>((line) => {
-        const resolved = resolveCartLine(line);
+        const resolved = resolveCartLine(line, catalog);
         return resolved ? [resolved] : [];
       }),
-    [cartState.lines],
+    [cartState.lines, catalog],
   );
 
   const wishlistProducts = useMemo(
     () =>
-      wishlistState.productIds.flatMap<Product>((productId) => {
-        const product = getProductById(productId);
+      wishlistState.productIds.flatMap<PublishedProduct>((productId) => {
+        const product = catalog.getProductById(productId);
         return product ? [product] : [];
       }),
-    [wishlistState.productIds],
+    [catalog, wishlistState.productIds],
   );
 
   const cartItemCount = useMemo(
@@ -648,6 +689,9 @@ export function StoreProvider({ children }: PropsWithChildren) {
 
   const value = useMemo<StoreContextValue>(
     () => ({
+      catalog,
+      categories: catalogSnapshot.categories,
+      chapters: catalogSnapshot.chapters,
       hydrated,
       cartLines,
       cartItemCount,
@@ -683,6 +727,9 @@ export function StoreProvider({ children }: PropsWithChildren) {
       cartDrawerOpen,
       cartItemCount,
       cartLines,
+      catalog,
+      catalogSnapshot.categories,
+      catalogSnapshot.chapters,
       clearCart,
       closeCartDrawer,
       hydrated,

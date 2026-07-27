@@ -1,8 +1,8 @@
-import type { Product } from "@/lib/catalog";
+import type { PublishedProduct } from "@/lib/catalog-runtime";
 import { ProductCard } from "./ProductCard";
 import styles from "./products.module.css";
 
-export function ProductGrid({ products, prioritize = 0 }: { products: readonly Product[]; prioritize?: number }) {
+export function ProductGrid({ products, prioritize = 0 }: { products: readonly PublishedProduct[]; prioritize?: number }) {
   return (
     <div className={styles.grid}>
       {products.map((product, index) => (

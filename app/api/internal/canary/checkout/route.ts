@@ -1,4 +1,5 @@
-import { getCommerceEnvironment, isCanonicalCommerceRequest } from "@/lib/commerce/config";
+import { isCanonicalCommerceRequest } from "@/lib/commerce/config";
+import { getCommerceEnvironmentWithRuntimeControls } from "@/lib/commerce/runtime-environment";
 import { CommerceDomainError } from "@/lib/commerce/errors";
 import { canCreateProductionCanary } from "@/lib/commerce/readiness";
 import { commerceErrorResponse } from "@/lib/http";
@@ -7,7 +8,8 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   try {
-    const environment = getCommerceEnvironment();
+    const environment =
+      await getCommerceEnvironmentWithRuntimeControls();
     const readiness = canCreateProductionCanary(environment, {
       canonicalRequest: isCanonicalCommerceRequest(
         new URL(request.url),
@@ -32,4 +34,3 @@ export async function POST(request: Request) {
     return commerceErrorResponse(error);
   }
 }
-

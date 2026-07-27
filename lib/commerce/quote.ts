@@ -1,11 +1,11 @@
 import { createHash } from "node:crypto";
 
 import {
-  getEffectiveSkuPrice,
-  getProductById,
-  getSkuById,
-} from "@/lib/catalog";
+  createCatalogSnapshotIndex,
+  type PublicCatalogSnapshot,
+} from "@/lib/catalog-runtime";
 
+import { getCatalogRepository } from "./container";
 import { CommerceDomainError } from "./errors";
 import {
   createOrderTotalsSnapshot,
@@ -86,6 +86,15 @@ export const DEFAULT_QUOTE_DIGEST_CONTEXT = Object.freeze({
   financialRevisions: DEFAULT_QUOTE_FINANCIAL_REVISIONS,
 } satisfies QuoteDigestContext);
 
+const financialRevisionsForSnapshot = (
+  snapshot: PublicCatalogSnapshot,
+  financialRevisions?: QuoteFinancialRevisions,
+): QuoteFinancialRevisions =>
+  financialRevisions ?? {
+    ...DEFAULT_QUOTE_FINANCIAL_REVISIONS,
+    pricingCatalogRevision: `publication-${snapshot.revision}`,
+  };
+
 const canonicalJson = (value: unknown): string => {
   if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -138,35 +147,44 @@ export const createFinancialQuoteDigest = (
     .digest("hex");
 };
 
-export function createCurrentQuote(
+export async function createCurrentQuote(
   requestedLines: readonly QuoteRequestLine[],
-  financialRevisions: QuoteFinancialRevisions =
-    DEFAULT_QUOTE_FINANCIAL_REVISIONS,
-): CurrentQuote {
+  financialRevisions?: QuoteFinancialRevisions,
+): Promise<CurrentQuote> {
+  const snapshot = await getCatalogRepository().readSnapshot();
+  const catalog = createCatalogSnapshotIndex(snapshot);
+  const effectiveFinancialRevisions = financialRevisionsForSnapshot(
+    snapshot,
+    financialRevisions,
+  );
   const requestedBySku = new Map(
     requestedLines.map((line) => [line.skuId, line] as const),
   );
   const pricedLines = [...requestedLines]
     .sort((left, right) => left.skuId.localeCompare(right.skuId))
     .map((line) => {
-    const sku = getSkuById(line.skuId);
-    const product = sku ? getProductById(sku.productId) : undefined;
-    const unitGrossTwd = sku ? getEffectiveSkuPrice(sku) : undefined;
-    if (!sku || !product || unitGrossTwd === undefined) {
-      throw new CommerceDomainError(
-        "SKU_UNAVAILABLE",
-        "A requested SKU is unknown or unavailable.",
-        409,
-      );
-    }
-    return {
-      skuId: sku.id,
-      quantity: line.quantity,
-      priceVersion: sku.priceVersion,
-      unitGrossTwd,
-      product,
-    };
-  });
+      const sku = catalog.getSkuById(line.skuId);
+      const product = sku
+        ? catalog.getProductById(sku.productId)
+        : undefined;
+      const unitGrossTwd = sku
+        ? catalog.getEffectiveSkuPrice(sku)
+        : undefined;
+      if (!sku || !product || unitGrossTwd === undefined) {
+        throw new CommerceDomainError(
+          "SKU_UNAVAILABLE",
+          "A requested SKU is unknown or unavailable.",
+          409,
+        );
+      }
+      return {
+        skuId: sku.id,
+        quantity: line.quantity,
+        priceVersion: sku.priceVersion,
+        unitGrossTwd,
+        product,
+      };
+    });
   const totals = createOrderTotalsSnapshot(pricedLines);
   const lines = totals.lines.map((snapshot): CurrentQuoteLine => {
     const pricedLine = pricedLines.find((line) => line.skuId === snapshot.skuId);
@@ -204,10 +222,10 @@ export function createCurrentQuote(
     currency: "TWD" as const,
     taxIncluded: true as const,
     digestSchemaRevision: QUOTE_DIGEST_SCHEMA_REVISION,
-    financialRevisions: Object.freeze({ ...financialRevisions }),
+    financialRevisions: Object.freeze({ ...effectiveFinancialRevisions }),
     quoteDigest: createFinancialQuoteDigest(totals, {
       ...DEFAULT_QUOTE_DIGEST_CONTEXT,
-      financialRevisions,
+      financialRevisions: effectiveFinancialRevisions,
     }),
     lines: Object.freeze(lines),
     totals,

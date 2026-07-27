@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>LIGNÉE 後台邀請</title>
+  </head>
+  <body style="background:#f3efe4;color:#253126;font-family:serif;margin:0;padding:32px">
+    <main style="background:#fffdf7;border:1px solid #a39b82;margin:0 auto;max-width:560px;padding:40px">
+      <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase">LIGNÉE Estate Administration</p>
+      <h1 style="font-size:30px;font-weight:400">接受後台邀請</h1>
+      <p>請使用下方一次性連結設定專用密碼，接著註冊主要與備用兩組 TOTP 驗證器。</p>
+      <p style="margin:32px 0">
+        <a
+          href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&amp;type=invite"
+          style="background:#3f4a35;color:#fff;display:inline-block;padding:14px 22px;text-decoration:none"
+        >接受邀請</a>
+      </p>
+      <p style="font-size:13px">若你未預期收到此信，請勿轉寄或開啟連結，並通知 LIGNÉE Owner。</p>
+    </main>
+  </body>
+</html>

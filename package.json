@@ -22,6 +22,8 @@
     "check:copy": "node scripts/check-prohibited-copy.mjs",
     "check:sql": "node scripts/check-sql-security.mjs",
     "check:secrets": "node scripts/check-secrets.mjs",
+    "bootstrap:owners": "node scripts/bootstrap-initial-owners.mjs",
+    "bootstrap:estate": "node --experimental-strip-types scripts/bootstrap-estate-no01.mjs",
     "check:launch": "pnpm check:assets && pnpm check:font && pnpm check:copy && pnpm check:sql && pnpm check:secrets",
     "validate": "pnpm check:launch && pnpm lint && pnpm typecheck && pnpm test"
   },

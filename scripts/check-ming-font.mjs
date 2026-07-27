@@ -6,10 +6,10 @@ const workspace = resolve(import.meta.dirname, "..");
 const fontPath = join(workspace, "app/fonts/lignee-ming-subset.woff2");
 const registryPath = join(workspace, "content/ming-han-glyphs.txt");
 const EXPECTED_FONT_SHA256 =
-  "018c34cb400029f44bfed47524e06014137f3533248d053e7d77119e83e5cf1e";
+  "7d40b00769849540f684c24e5b048a3f24b34b07e57cf214baddbefb2834091e";
 const EXPECTED_REGISTRY_SHA256 =
-  "0c2ed09a4d46c773b2614a2d737442407f3d7ebd1630f85c9d25fd800e2f06a5";
-const EXPECTED_HAN_GLYPH_COUNT = 984;
+  "3be8d10cbc35cc2d4e2ddd3bcf2b7fcd05a97776a6941c9cf03798ac0263f0f8";
+const EXPECTED_HAN_GLYPH_COUNT = 1085;
 const sourceRoots = ["app", "components", "lib", "content"];
 const sourceExtensions = new Set([".ts", ".tsx", ".json", ".css"]);
 

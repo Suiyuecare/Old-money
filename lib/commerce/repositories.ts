@@ -1,13 +1,24 @@
-import type { Product, SKU } from "@/lib/catalog";
+import type {
+  PublicCatalogSnapshot,
+  PublishedProduct,
+  PublishedSKU,
+} from "@/lib/catalog-runtime";
 
 import type { InventoryBalance, InventoryOperationResult } from "./inventory";
 import type { OrderTotalsSnapshot } from "./money";
 import type { QuoteFinancialRevisions } from "./quote";
 
 export interface CatalogRepository {
-  listPublished(): Promise<readonly Product[]>;
-  findPublishedProductBySlug(slug: string): Promise<Product | undefined>;
-  findCurrentSku(skuId: string): Promise<SKU | undefined>;
+  /**
+   * Transitional mocks may omit the snapshot method; all repositories returned
+   * by getCatalogRepository implement the complete versioned contract.
+   */
+  readSnapshot?(): Promise<PublicCatalogSnapshot>;
+  listPublished(): Promise<readonly PublishedProduct[]>;
+  findPublishedProductBySlug(
+    slug: string,
+  ): Promise<PublishedProduct | undefined>;
+  findCurrentSku(skuId: string): Promise<PublishedSKU | undefined>;
 }
 
 export interface CheckoutDraft {

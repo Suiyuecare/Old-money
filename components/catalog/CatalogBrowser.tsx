@@ -12,16 +12,14 @@ import {
 } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ProductGrid } from "@/components/products/ProductGrid";
+import { useStore } from "@/components/store/StoreProvider";
 import {
   audienceMetadata,
-  categoryMetadata,
-  collections,
   formatTwd,
   materialConceptMetadata,
-  type Product,
 } from "@/lib/catalog";
+import type { PublishedProduct } from "@/lib/catalog-runtime";
 import {
-  catalogColorOptions,
   catalogSortOptions,
   CatalogQueryCoordinator,
   countActiveCatalogFilters,
@@ -35,7 +33,7 @@ import {
 import styles from "./catalog.module.css";
 
 interface CatalogBrowserProps {
-  readonly products: readonly Product[];
+  readonly products: readonly PublishedProduct[];
 }
 
 type MultiValueKey = "category" | "audience" | "collection" | "color" | "material";
@@ -53,7 +51,16 @@ function numberDraft(value: number | undefined): string {
   return value === undefined ? "" : String(value);
 }
 
+function facetFallbackLabel(value: string): string {
+  return value
+    .split("-")
+    .filter(Boolean)
+    .map((part) => `${part.charAt(0).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
 export function CatalogBrowser({ products }: CatalogBrowserProps) {
+  const { catalog, categories, chapters } = useStore();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -163,8 +170,34 @@ export function CatalogBrowser({ products }: CatalogBrowserProps) {
     }),
     [products],
   );
+  const colorOptions = useMemo(() => {
+    const labels = new Map<string, string>();
+    for (const product of products) {
+      const axis = product.optionAxes.find((candidate) => candidate.key === "color");
+      for (const option of axis?.values ?? []) {
+        if (!labels.has(option.value)) labels.set(option.value, option.label);
+      }
+    }
+    return [...labels].map(([value, label]) => ({ value, label }));
+  }, [products]);
+  const materialOptions = useMemo(
+    () =>
+      [...available.material]
+        .sort()
+        .map((value) => ({
+          value,
+          label:
+            materialConceptMetadata[
+              value as keyof typeof materialConceptMetadata
+            ]?.label ?? facetFallbackLabel(value),
+        })),
+    [available.material],
+  );
 
-  const results = useMemo(() => filterAndSortProducts(products, query), [products, query]);
+  const results = useMemo(
+    () => filterAndSortProducts(products, query, catalog),
+    [catalog, products, query],
+  );
   const activeCount = countActiveCatalogFilters(query);
 
   const toggleValue = (key: MultiValueKey, value: string, checked: boolean) => {
@@ -250,15 +283,16 @@ export function CatalogBrowser({ products }: CatalogBrowserProps) {
   const filterControls = (
     <div className={styles.filterBody}>
       <FilterGroup legend="類別">
-        {categoryMetadata
-          .filter(({ id }) => available.category.has(id))
+        {categories
+          .filter(({ code }) => available.category.has(code))
+          .toSorted((left, right) => left.sortOrder - right.sortOrder)
           .map((item) => (
             <FilterCheckbox
-              key={item.id}
-              id={`category-${item.id}`}
-              label={item.label}
-              checked={query.category.includes(item.id)}
-              onChange={(checked) => toggleValue("category", item.id, checked)}
+              key={item.code}
+              id={`category-${item.code}`}
+              label={item.nameZh}
+              checked={query.category.includes(item.code)}
+              onChange={(checked) => toggleValue("category", item.code, checked)}
             />
           ))}
       </FilterGroup>
@@ -278,21 +312,22 @@ export function CatalogBrowser({ products }: CatalogBrowserProps) {
       </FilterGroup>
 
       <FilterGroup legend="莊園篇章">
-        {collections
-          .filter(({ id }) => available.collection.has(id))
+        {chapters
+          .filter(({ code }) => available.collection.has(code))
+          .toSorted((left, right) => left.sortOrder - right.sortOrder)
           .map((item) => (
             <FilterCheckbox
-              key={item.id}
-              id={`collection-${item.id}`}
-              label={item.subtitle}
-              checked={query.collection.includes(item.id)}
-              onChange={(checked) => toggleValue("collection", item.id, checked)}
+              key={item.code}
+              id={`collection-${item.code}`}
+              label={item.titleZh}
+              checked={query.collection.includes(item.code)}
+              onChange={(checked) => toggleValue("collection", item.code, checked)}
             />
           ))}
       </FilterGroup>
 
       <FilterGroup legend="顏色">
-        {catalogColorOptions
+        {colorOptions
           .filter(({ value }) => available.color.has(value))
           .map((item) => (
             <FilterCheckbox
@@ -306,17 +341,13 @@ export function CatalogBrowser({ products }: CatalogBrowserProps) {
       </FilterGroup>
 
       <FilterGroup legend="概念材質">
-        {Object.entries(materialConceptMetadata)
-          .filter(([id]) =>
-            available.material.has(id as keyof typeof materialConceptMetadata),
-          )
-          .map(([id, item]) => (
+        {materialOptions.map((item) => (
             <FilterCheckbox
-              key={id}
-              id={`material-${id}`}
+              key={item.value}
+              id={`material-${item.value}`}
               label={item.label}
-              checked={query.material.includes(id as keyof typeof materialConceptMetadata)}
-              onChange={(checked) => toggleValue("material", id, checked)}
+              checked={query.material.includes(item.value)}
+              onChange={(checked) => toggleValue("material", item.value, checked)}
             />
           ))}
       </FilterGroup>

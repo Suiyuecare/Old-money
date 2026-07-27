@@ -30,7 +30,9 @@ export class MockPaymentGateway implements PaymentGateway {
   async queryTrade(input: Parameters<PaymentGateway["queryTrade"]>[0]) {
     return {
       tradeStatus: "unknown" as const,
-      evidenceHash: fixtureId("query", input.merchantTradeNo),
+      evidenceHash: createHash("sha256")
+        .update(`query:${input.merchantTradeNo}`)
+        .digest("hex"),
     };
   }
 
@@ -76,4 +78,3 @@ export class MockEmailProvider implements EmailProvider {
     };
   }
 }
-

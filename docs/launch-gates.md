@@ -36,13 +36,25 @@ All boxes default open. A checkbox is evidence, not intention.
 - [ ] Two different active Owners with AAL2 and recovery material
 - [ ] CSP, CSRF, rate limits, secret scan, abuse fixture, load/cost profile and fault injection pass
 
-## Future enable order (not implemented in this repository)
+## Implemented enable order
 
-The repository cannot perform these actions. A separately implemented and
-reviewed release system would need to:
+The repository now contains revisioned runtime controls and an append-only
+Owner attestation ledger. These controls remain intentionally incapable of
+opening commerce until all deployment hard limits and durable evidence agree:
 
-1. Promote a production-capable candidate while every public flag stays false.
-2. Run a canonical-host restricted canary only with the approved SKU/price.
-3. Close and reconcile the canary.
-4. Atomically publish 50/50.
-5. Enable commerce, checkout and indexing in separate revisioned actions.
+1. Deploy `production-disabled` with commerce, checkout, canary, Apple Pay and
+   indexing false.
+2. Record catalog and legal approval evidence as an Owner after a recent TOTP
+   challenge, then deploy their exact revision values.
+3. Provision reviewed live adapters and credentials without changing the
+   public flags.
+4. Enable only the canonical-host canary, run one approved small-value order,
+   close it, and reconcile payment, invoice, shipment and refund evidence.
+5. Record the resulting SHA-256 in the append-only ledger and deploy that exact
+   digest.
+6. Enable commerce, checkout, Apple Pay and indexing as separate revisioned
+   Owner actions. Any database outage, evidence mismatch, missing adapter or
+   deployment-capability mismatch closes the affected gate.
+
+No live provider adapter or real-money canary is present yet, so steps 3–6
+remain operational launch blockers rather than automatic deployment actions.

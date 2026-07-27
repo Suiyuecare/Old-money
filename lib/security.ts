@@ -1,6 +1,7 @@
 export interface ContentSecurityPolicyContext {
   readonly pathname?: string;
   readonly commerceMode?: "demo" | "production-disabled" | "live";
+  readonly adminStorageOrigin?: string;
 }
 
 export const buildContentSecurityPolicy = (
@@ -12,6 +13,14 @@ export const buildContentSecurityPolicy = (
   const connectDevelopment = development
     ? " ws://localhost:* ws://127.0.0.1:*"
     : "";
+  const adminStorageOrigin =
+    context.pathname?.startsWith("/admin") &&
+    context.adminStorageOrigin &&
+    /^https:\/\/[a-z]{20}\.supabase\.co$/.test(
+      context.adminStorageOrigin,
+    )
+      ? ` ${context.adminStorageOrigin}`
+      : "";
 
   const formAction =
     context.pathname?.startsWith("/checkout") && context.commerceMode === "demo"
@@ -26,7 +35,7 @@ export const buildContentSecurityPolicy = (
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self'",
-    `connect-src 'self'${connectDevelopment}`,
+    `connect-src 'self'${adminStorageOrigin}${connectDevelopment}`,
     "media-src 'self'",
     "worker-src 'self' blob:",
     "manifest-src 'self'",

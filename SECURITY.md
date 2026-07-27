@@ -1,12 +1,20 @@
 # Security and privacy boundary
 
-LIGNÉE is production-shaped and fail-closed. The local demo can exercise deterministic commerce contracts, but no real payment, order, Email, invoice, shipment, admin mutation, or external provider call is enabled.
+LIGNÉE is production-shaped and fail-closed. The local Demo can exercise
+deterministic commerce contracts. A dedicated Production database can persist
+authenticated admin/catalog/operations work, but no real payment, new order,
+Email, invoice, shipment or other external provider call is enabled until its
+reviewed adapter, credentials and launch evidence are present.
 
 ## Immutable upper bounds
 
 - `COMMERCE_CAPABLE` defaults to false.
 - Production defaults to `production-disabled`.
-- Production runtime controls are not accepted from browser or environment flags. Until the DB + Edge revision path exists, controls resolve to checkout/index/canary off and emergency no-cache on.
+- Production runtime controls come only from the durable database RPC. Owner
+  controls can tighten the deployment boundary, but cannot exceed it.
+- Catalog, legal and canary environment values are expected-value bindings,
+  not approval evidence. They must exactly match the latest append-only
+  database attestations or the corresponding capability resolves closed.
 - Only `https://estatelignee.com` may eventually create live commands. Localhost, Preview, `www`, and provider deployment URLs cannot.
 - Checkout-only failures do not disable verified callbacks or existing-order work; each readiness predicate checks only its required dependencies.
 - A configured live mode never falls back to mock adapters.
@@ -29,15 +37,18 @@ Logging must use `redactForLog`; request bodies and secrets are never logged. Au
 ## Payment safety
 
 ECPay CheckMacValue canonicalization uses Node crypto and constant-time
-comparison. The callback is deliberately unavailable because the durable inbox
-and QueryTradeInfo reconciliation are not implemented. The browser-return route
-ignores provider fields and can only navigate to a confirmation-pending state.
-A future QueryTradeInfo flow must create an append-only receipt before aggregate
-transitions.
+comparison. A valid callback is acknowledged only after a redacted provider
+event and a unique QueryTradeInfo operation are durably committed together.
+Callback claims never directly mark payment successful. The browser-return
+route ignores provider fields and shows confirmation pending.
 
-Refund, invoice, shipment and Email interfaces model stable operation keys, but
-their production adapters and workers are unimplemented. A future remote
-success followed by local failure must reconcile the same operation.
+Refund, invoice, shipment and Email operations use stable operation keys,
+leases, bounded retry budgets and reconciliation. An immutable database fence
+is committed immediately before every remote-effect call. A timeout after that
+fence becomes `unknown`/manual review and neither completion nor lease recovery
+can queue it again; only a proven pre-dispatch failure may retry.
+Production provider adapters remain disabled until credentials and canary
+evidence are supplied.
 
 ## CSP and browser controls
 
@@ -47,7 +58,11 @@ Production baseline:
 default-src 'self'; script-src 'self' 'nonce-{requestNonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests
 ```
 
-Checkout adds only the exact environment ECPay host. Sandbox and live hosts are never allowed together. `unsafe-eval` is development-only. All HTML and sensitive routes are private/no-store/noindex. Analytics is disabled until a nonce-compatible exact-CSP production proof exists.
+Checkout adds only the exact environment ECPay host. Admin routes add only the
+validated dedicated Supabase origin to `connect-src` for signed private
+uploads. Sandbox and live payment hosts are never allowed together.
+`unsafe-eval` is development-only. All HTML and sensitive routes are
+private/no-store/noindex.
 
 ## Security verification
 

@@ -9,5 +9,6 @@
 7. Notify both staffed channels. Do not rely on Resend for the independent channel.
 8. Re-enable only with DB/Edge revision match, purge acknowledgement, resolved root cause, and Owner AAL2 approval.
 
-No route in this repository can re-enable production commerce.
-
+An Owner route may advance revisioned runtime controls only after recent AAL2.
+It still cannot exceed deployment hard limits or substitute environment values
+for the append-only catalog, legal and canary evidence ledger.

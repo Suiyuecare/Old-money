@@ -48,7 +48,7 @@ const TEST_ORDER_QUOTE = Object.freeze({
 });
 
 describe("immutable TWD totals", () => {
-  it("canonicalizes allocation and binds the complete financial snapshot", () => {
+  it("canonicalizes allocation and binds the complete financial snapshot", async () => {
     const lines = [
       { skuId: "field-house-polo-s-estate-olive", quantity: 1 },
       {
@@ -56,12 +56,15 @@ describe("immutable TWD totals", () => {
         quantity: 2,
       },
     ] as const;
-    const forward = createCurrentQuote(lines);
-    const reversed = createCurrentQuote([...lines].reverse());
+    const forward = await createCurrentQuote(lines);
+    const reversed = await createCurrentQuote([...lines].reverse());
     expect(forward.quoteDigest).toMatch(/^[a-f0-9]{64}$/);
     expect(reversed.quoteDigest).toBe(forward.quoteDigest);
     expect(reversed.totals).toEqual(forward.totals);
     expect(reversed.lines).toEqual(forward.lines);
+    expect(forward.financialRevisions.pricingCatalogRevision).toBe(
+      "publication-1",
+    );
     expect(forward.lines.map((line) => line.lineGrossTwd)).toEqual([
       4_400,
       7_800,
@@ -78,19 +81,19 @@ describe("immutable TWD totals", () => {
       });
     }
     expect(
-      createCurrentQuote([{ ...lines[0], quantity: 2 }]).quoteDigest,
+      (await createCurrentQuote([{ ...lines[0], quantity: 2 }])).quoteDigest,
     ).not.toBe(forward.quoteDigest);
   });
 
-  it("changes the digest across every financial rules revision boundary", () => {
+  it("changes the digest across every financial rules revision boundary", async () => {
     const lines = [
       { skuId: "field-house-polo-s-estate-olive", quantity: 1 },
     ] as const;
-    const baseline = createCurrentQuote(lines);
+    const baseline = await createCurrentQuote(lines);
     for (const revisionName of Object.keys(
       DEFAULT_QUOTE_FINANCIAL_REVISIONS,
     ) as (keyof typeof DEFAULT_QUOTE_FINANCIAL_REVISIONS)[]) {
-      const changed = createCurrentQuote(lines, {
+      const changed = await createCurrentQuote(lines, {
         ...DEFAULT_QUOTE_FINANCIAL_REVISIONS,
         [revisionName]: `${DEFAULT_QUOTE_FINANCIAL_REVISIONS[revisionName]}-next`,
       });
@@ -509,6 +512,42 @@ describe("fail-closed readiness and rate limits", () => {
         dailyCount: 0,
       }).allowed,
     ).toBe(false);
+  });
+
+  it("downgrades an accidental Production demo mode outside a verified Preview", () => {
+    const production = getCommerceEnvironment({
+      NODE_ENV: "production",
+      VERCEL: "1",
+      VERCEL_ENV: "production",
+      LIGNEE_MODE: "demo",
+      COMMERCE_CAPABLE: "true",
+    });
+    expect(production.mode).toBe("production-disabled");
+    expect(canCreateCheckout(production, true).allowed).toBe(false);
+
+    const preview = getCommerceEnvironment({
+      NODE_ENV: "production",
+      VERCEL: "1",
+      VERCEL_ENV: "preview",
+      LIGNEE_MODE: "demo",
+    });
+    expect(preview.mode).toBe("demo");
+  });
+
+  it("serves approved revision-matched media in emergency no-cache mode", () => {
+    const environment = getCommerceEnvironment({
+      NODE_ENV: "production",
+      LIGNEE_MODE: "production-disabled",
+    });
+    expect(environment.controls.mediaEmergencyNoCache).toBe(true);
+    expect(
+      canServePublicMedia(environment, {
+        edgeBeforeCacheVerified: true,
+        revisionMatches: true,
+        status: "live_approved",
+        tombstoned: false,
+      }),
+    ).toMatchObject({ allowed: true });
   });
 
   it("applies deterministic per-principal windows in the demo repository", async () => {

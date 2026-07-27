@@ -57,6 +57,26 @@
   object-fit: cover;
 }
 
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 1600px);
+  margin-inline: auto;
+  border-bottom: 1px solid var(--line);
+}
+
+.galleryItem {
+  position: relative;
+  min-height: clamp(24rem, 60vw, 58rem);
+  margin: 0;
+  overflow: hidden;
+  background: var(--ivory-200);
+}
+
+.galleryItem:nth-child(even) {
+  border-left: 1px solid var(--line);
+}
+
 .imageStamp {
   position: absolute;
   right: 0;

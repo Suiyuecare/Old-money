@@ -19,6 +19,7 @@ import {
   resolveCartLine,
   useStore,
 } from "@/components/store/StoreProvider";
+import { createEstateNo01Snapshot } from "@/lib/catalog-runtime";
 
 const KNOWN_SKU_ID = "field-house-polo-s-estate-olive";
 const KNOWN_PRODUCT_ID = "field-house-polo";
@@ -222,7 +223,13 @@ describe("storage-unavailable memory fallback", () => {
       throw new DOMException("blocked", "SecurityError");
     });
 
-    render(createElement(StoreProvider, null, createElement(StoreFallbackProbe)));
+    render(
+      createElement(
+        StoreProvider,
+        { catalogSnapshot: createEstateNo01Snapshot() },
+        createElement(StoreFallbackProbe),
+      ),
+    );
 
     await waitFor(() => expect(screen.getByTestId("hydrated")).toHaveTextContent("true"));
 

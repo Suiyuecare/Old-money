@@ -80,4 +80,31 @@ describe("request CSP", () => {
     expect(production).not.toContain("'unsafe-eval'");
     expect(production).not.toContain("ws://");
   });
+
+  it("allows only the bound Supabase origin for private admin uploads", () => {
+    const admin = directives(
+      buildContentSecurityPolicy("nonce", false, {
+        pathname: "/admin/products/product-id",
+        adminStorageOrigin:
+          "https://abcdefghijklmnopqrst.supabase.co",
+      }),
+    );
+    expect(admin.get("connect-src")).toEqual([
+      "'self'",
+      "https://abcdefghijklmnopqrst.supabase.co",
+    ]);
+
+    const storefront = buildContentSecurityPolicy("nonce", false, {
+      pathname: "/shop",
+      adminStorageOrigin:
+        "https://abcdefghijklmnopqrst.supabase.co",
+    });
+    expect(storefront).not.toContain("supabase.co");
+
+    const injected = buildContentSecurityPolicy("nonce", false, {
+      pathname: "/admin",
+      adminStorageOrigin: "https://attacker.example",
+    });
+    expect(injected).not.toContain("attacker.example");
+  });
 });

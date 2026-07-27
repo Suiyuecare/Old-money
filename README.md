@@ -2,7 +2,12 @@
 
 LIGNÉE is a Taiwan-first DTC own-brand storefront shaped around Alderwick House, contemporary British-estate life, and a private grass court. Estate No. 01 contains exactly 50 Sandbox products in Traditional Chinese and TWD.
 
-The repository is a production-shaped, production-disabled foundation. Local development uses bounded process-local repositories and deterministic providers. It does not contain a live enable path. Production checkout, callbacks, invoices, logistics, admin mutation, indexing, canary admission, and provider calls fail closed.
+The repository is a production-shaped, production-disabled storefront and
+operations backoffice. Local development and verified Preview use bounded
+process-local repositories and deterministic providers. Production can read
+immutable catalog snapshots and run authenticated administrative workflows,
+while checkout, live provider effects, canary admission and indexing remain
+closed until deployment limits exactly match durable Owner evidence.
 
 ## Local development
 
@@ -43,15 +48,23 @@ The static launch gate verifies:
 - local Ming font and no build-time font network request
 - strict TypeScript, Zod request schemas, CSS Modules and design tokens
 - server-authoritative catalog quote and digest, explicit stale-price acknowledgement, immutable tax/total snapshots, inventory ledger, bounded idempotency and state machines
-- narrow repository/provider interfaces with bounded process-local demo adapters
-- ECPay signature/canonicalization primitives without live provider calls
-- unexecuted Supabase migration source defining private schemas, `api`-only exposure, forced RLS, negative SQL tests, and append-only financial/audit shapes
+- narrow asynchronous repository/provider interfaces with bounded Demo
+  adapters and fail-closed Supabase adapters
+- ECPay signature/canonicalization, durable callback-before-ack inbox and
+  bounded QueryTradeInfo reconciliation without provisioned live credentials
+- unexecuted Supabase migration source defining private schemas, `api`-only
+  exposure, forced RLS, role-negative SQL tests, immutable catalog
+  publications, append-only inventory/financial/audit ledgers and leased jobs
 - per-request nonce CSP, same-origin BFF boundaries, noindex, no analytics on sensitive routes
 
-The durable Supabase repositories/order transaction/OTP, DB+Edge control
-reader, live media gateway, ECPay inbox/query/refund flow, invoice/logistics
-adapters, workers/reconciliation, canary, live SEO/index controls, and real
-private-asset custody are not implemented. See [implementation status](./docs/implementation-status.md), [launch gates](./docs/launch-gates.md), [environment matrix](./docs/environment-matrix.md), [security](./SECURITY.md), and [runbooks](./docs/runbooks/).
+The repository includes the dynamic catalog, admin Auth/AAL2, private media
+pipeline, inventory and operations workbenches, guest order access, durable
+provider inbox/outbox, reconciliation, runtime controls and append-only launch
+attestations. Production order creation, live payment/invoice/logistics/Email
+adapters, real product/legal facts, provider credentials and the controlled
+money canary remain launch-gated. See [implementation status](./docs/implementation-status.md),
+[launch gates](./docs/launch-gates.md), [environment matrix](./docs/environment-matrix.md),
+[security](./SECURITY.md), and [runbooks](./docs/runbooks/).
 
 ## Supabase safety
 

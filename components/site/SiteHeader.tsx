@@ -1,16 +1,37 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "@/components/store/StoreProvider";
-import { primaryNavigation } from "@/lib/editorial";
 import { BrandMark } from "./BrandMark";
 
 export function SiteHeader() {
   const [open, setOpen] = useState(false);
-  const { cartItemCount, hydrated, openCartDrawer, wishlistCount } = useStore();
+  const {
+    cartItemCount,
+    categories,
+    hydrated,
+    openCartDrawer,
+    wishlistCount,
+  } = useStore();
   const cartCount = hydrated ? String(cartItemCount) : "–";
   const savedCount = hydrated ? String(wishlistCount) : "–";
+  const primaryNavigation = useMemo(
+    () => [
+      { label: "男士", labelEn: "Men", href: "/men" },
+      { label: "女士", labelEn: "Women", href: "/women" },
+      ...categories
+        .toSorted((left, right) => left.sortOrder - right.sortOrder)
+        .map((category) => ({
+          label: category.nameZh,
+          labelEn: category.nameEn,
+          href: `/category/${category.routeSegment}`,
+        })),
+      { label: "莊園篇章", labelEn: "Collections", href: "/collections" },
+      { label: "Estate Journal", labelEn: "Journal", href: "/journal" },
+    ],
+    [categories],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -38,7 +59,7 @@ export function SiteHeader() {
         <BrandMark compact />
 
         <nav className="desktop-nav" aria-label="主要導覽">
-          {primaryNavigation.slice(0, 7).map((item) => (
+          {primaryNavigation.map((item) => (
             <Link key={item.href} href={item.href}>
               {item.label}
             </Link>
@@ -68,7 +89,7 @@ export function SiteHeader() {
           {primaryNavigation.map((item) => (
             <Link key={item.href} href={item.href} onClick={() => setOpen(false)}>
               <span>{item.label}</span>
-              <span>{"labelEn" in item ? item.labelEn : "Journal"}</span>
+              <span>{item.labelEn}</span>
             </Link>
           ))}
         </nav>

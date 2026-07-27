@@ -1,5 +1,6 @@
 import { Suspense } from "react";
-import type { CategoryId, Product } from "@/lib/catalog";
+import type { CategoryId } from "@/lib/catalog";
+import type { PublishedProduct } from "@/lib/catalog-runtime";
 import { CatalogBrowser } from "./CatalogBrowser";
 import { CategoryHero } from "./CategoryHero";
 import styles from "./catalog.module.css";
@@ -8,7 +9,7 @@ interface CatalogPageProps {
   readonly eyebrow: string;
   readonly title: string;
   readonly description: string;
-  readonly products: readonly Product[];
+  readonly products: readonly PublishedProduct[];
   readonly heroCategory?: CategoryId;
 }
 

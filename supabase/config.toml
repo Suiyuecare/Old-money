@@ -19,11 +19,19 @@ sql_paths = ["./seed.sql"]
 [auth]
 enabled = true
 site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = []
+additional_redirect_urls = [
+  "http://127.0.0.1:3000/admin/invite/confirm",
+  "https://estatelignee.com/admin/invite/confirm",
+]
 enable_signup = false
 
+[auth.email.template.invite]
+subject = "LIGNÉE 後台邀請"
+content_path = "./supabase/templates/invite.html"
+
 [storage]
-enabled = false
+enabled = true
+file_size_limit = "20MiB"
 
 [realtime]
 enabled = false

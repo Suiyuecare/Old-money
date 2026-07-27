@@ -1,5 +1,9 @@
 import type { NextConfig } from "next";
 
+const deploymentCanEverIndex =
+  process.env.LIGNEE_MODE === "live" &&
+  process.env.COMMERCE_CAPABLE === "true";
+
 const nextConfig: NextConfig = {
   poweredByHeader: false,
   allowedDevOrigins: ["127.0.0.1"],
@@ -23,7 +27,12 @@ const nextConfig: NextConfig = {
       {
         source: "/:path*",
         headers: [
-          { key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" },
+          ...(deploymentCanEverIndex
+            ? []
+            : [{
+                key: "X-Robots-Tag",
+                value: "noindex, nofollow, noarchive",
+              }]),
           { key: "Referrer-Policy", value: "no-referrer" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },

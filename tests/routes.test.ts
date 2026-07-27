@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { products } from "@/lib/catalog";
+import { categoryMetadata, products } from "@/lib/catalog";
 import {
   estateCollections,
   estateJournalEntries,
@@ -47,13 +47,16 @@ describe("reachable route manifest", () => {
   it("contains every static, product, collection, journal, and representative 404 route", () => {
     const expectedPaths = [
       ...staticRoutePaths,
+      ...categoryMetadata.map(
+        (category) => `/category/${category.routeSegment}`,
+      ),
       ...products.map((product) => `/product/${product.slug}`),
       ...estateCollections.map((collection) => collection.href),
       ...estateJournalEntries.map((entry) => entry.href),
       "/__lignee-route-not-found__",
     ];
 
-    expect(routeManifest).toHaveLength(87);
+    expect(routeManifest).toHaveLength(92);
     expect(routeManifest.map((route) => route.path)).toEqual(expectedPaths);
     expect(new Set(expectedPaths).size).toBe(expectedPaths.length);
   });

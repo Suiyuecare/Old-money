@@ -31,7 +31,7 @@ describe("catalog query parsing and canonical serialization", () => {
           "ignored=prototype",
           "q=++Rain+++Ledger++",
           "category=home",
-          "category=unknown",
+          "category=Unknown_Value",
           "category=apparel",
           "category=home",
           "audience=unisex",
@@ -39,7 +39,7 @@ describe("catalog query parsing and canonical serialization", () => {
           "audience=men",
           "collection=dinner-at-the-long-table",
           "collection=first-light-in-the-field",
-          "color=not-a-color",
+          "color=not%2Fa%2Fcolor",
           "color=estate-olive",
           "material=metal-direction",
           "material=cotton-direction",
@@ -77,10 +77,30 @@ describe("catalog query parsing and canonical serialization", () => {
     expect(
       parseCatalogQuery(
         new URLSearchParams(
-          "min=-1&max=9007199254740992&sort=lowest&category=prototype",
+          "min=-1&max=9007199254740992&sort=lowest&category=Prototype!",
         ),
       ),
     ).toEqual(emptyCatalogQuery());
+  });
+
+  it("preserves safe dynamic taxonomy and option values beyond Estate No. 01", () => {
+    const parsed = parseCatalogQuery(
+      new URLSearchParams(
+        "category=equestrian&collection=winter-at-alderwick" +
+          "&color=midnight-navy&material=wool-direction",
+      ),
+    );
+
+    expect(parsed).toMatchObject({
+      category: ["equestrian"],
+      collection: ["winter-at-alderwick"],
+      color: ["midnight-navy"],
+      material: ["wool-direction"],
+    });
+    expect(serializeCatalogQuery(parsed)).toBe(
+      "category=equestrian&collection=winter-at-alderwick" +
+        "&color=midnight-navy&material=wool-direction",
+    );
   });
 });
 

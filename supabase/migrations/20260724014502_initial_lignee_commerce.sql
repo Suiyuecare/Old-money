@@ -610,9 +610,13 @@ create table ops_private.outbox_jobs (
   created_at timestamptz not null default now()
 );
 
-create index outbox_jobs_runnable_idx
-  on ops_private.outbox_jobs(job_type, available_at)
-  where state in ('queued', 'leased');
+create index outbox_jobs_ready_idx
+  on ops_private.outbox_jobs(job_type, available_at, created_at, id)
+  where state = 'queued';
+
+create index outbox_jobs_expired_lease_idx
+  on ops_private.outbox_jobs(job_type, lease_expires_at, id)
+  where state = 'leased';
 
 create table ops_private.cache_invalidation_jobs (
   id uuid primary key default gen_random_uuid(),
@@ -686,6 +690,62 @@ create table engagement_private.appointments (
     check (state in ('requested', 'contacted', 'confirmed', 'completed', 'declined')),
   created_at timestamptz not null default now()
 );
+
+-- PostgreSQL does not index the referencing side of a foreign key
+-- automatically. Keep parent updates/deletes and integrity checks bounded as
+-- commerce history grows.
+create index products_category_id_fk_idx
+  on catalog_private.products(category_id);
+create index products_chapter_id_fk_idx
+  on catalog_private.products(chapter_id);
+create index release_batch_products_product_id_fk_idx
+  on catalog_private.release_batch_products(product_id);
+create index email_otp_challenges_checkout_session_id_fk_idx
+  on commerce_private.email_otp_challenges(checkout_session_id);
+create index order_items_sku_id_fk_idx
+  on commerce_private.order_items(sku_id);
+create index order_items_price_version_id_fk_idx
+  on commerce_private.order_items(price_version_id);
+create index order_item_units_sku_id_fk_idx
+  on commerce_private.order_item_units(sku_id);
+create index payment_attempts_reservation_id_fk_idx
+  on commerce_private.payment_attempts(reservation_id);
+create index payment_receipts_order_id_fk_idx
+  on commerce_private.payment_receipts(order_id);
+create index payment_receipts_payment_attempt_id_fk_idx
+  on commerce_private.payment_receipts(payment_attempt_id);
+create index provider_disputes_payment_receipt_id_fk_idx
+  on commerce_private.provider_disputes(payment_receipt_id);
+create index payment_adjustments_payment_receipt_id_fk_idx
+  on commerce_private.payment_adjustment_entries(payment_receipt_id);
+create index payment_adjustments_provider_dispute_id_fk_idx
+  on commerce_private.payment_adjustment_entries(provider_dispute_id)
+  where provider_dispute_id is not null;
+create index refund_operations_order_id_fk_idx
+  on commerce_private.refund_operations(order_id);
+create index refund_operations_payment_receipt_id_fk_idx
+  on commerce_private.refund_operations(payment_receipt_id);
+create index invoices_order_id_fk_idx
+  on commerce_private.invoices(order_id);
+create index shipments_order_id_fk_idx
+  on commerce_private.shipments(order_id);
+create index parcels_shipment_id_fk_idx
+  on commerce_private.parcels(shipment_id);
+create index parcel_units_order_id_fk_idx
+  on commerce_private.parcel_units(order_id);
+create index return_cases_order_id_fk_idx
+  on commerce_private.return_cases(order_id);
+create index return_dispositions_order_item_unit_id_fk_idx
+  on commerce_private.return_unit_dispositions(order_item_unit_id);
+create index order_unit_credits_order_id_fk_idx
+  on commerce_private.order_unit_credits(order_id);
+create index legal_documents_supersedes_id_fk_idx
+  on ops_private.legal_documents(supersedes_id)
+  where supersedes_id is not null;
+
+create index payment_attempts_reconcile_due_idx
+  on commerce_private.payment_attempts(reconcile_after, id)
+  where state = 'verification_pending';
 
 create or replace function ops_private.reject_mutation()
 returns trigger

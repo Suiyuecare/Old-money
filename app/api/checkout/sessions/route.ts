@@ -2,9 +2,9 @@ import { z } from "zod";
 
 import { getCommerceContainer } from "@/lib/commerce/container";
 import {
-  getCommerceEnvironment,
   isCanonicalCommerceRequest,
 } from "@/lib/commerce/config";
+import { getCommerceEnvironmentWithRuntimeControls } from "@/lib/commerce/runtime-environment";
 import { executeDemoPublicCommand } from "@/lib/commerce/demo-public-command";
 import { CommerceDomainError } from "@/lib/commerce/errors";
 import { canCreateCheckout } from "@/lib/commerce/readiness";
@@ -26,7 +26,8 @@ export async function POST(request: Request) {
   try {
     assertSameOrigin(request);
     const body = await parseBoundedJson(request, requestSchema);
-    const environment = getCommerceEnvironment();
+    const environment =
+      await getCommerceEnvironmentWithRuntimeControls();
     const requestUrl = new URL(request.url);
     const readiness = canCreateCheckout(
       environment,

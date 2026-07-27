@@ -3,8 +3,8 @@ import { createHash } from "node:crypto";
 import { getCommerceEnvironment } from "@/lib/commerce/config";
 import { CommerceDomainError } from "@/lib/commerce/errors";
 import { canAcceptPaymentCallback } from "@/lib/commerce/readiness";
+import { getWorkerOperationsRepository } from "@/lib/operations/container";
 import {
-  createEcpayCheckMacValue,
   verifyEcpayCheckMacValue,
 } from "@/lib/providers/ecpay";
 import { commerceErrorResponse } from "@/lib/http";
@@ -12,6 +12,42 @@ import { commerceErrorResponse } from "@/lib/http";
 export const dynamic = "force-dynamic";
 
 const MAX_CALLBACK_BYTES = 64 * 1024;
+const ECPAY_ACKNOWLEDGEMENT = "1|OK";
+
+const callbackFingerprint = (
+  fields: Readonly<Record<string, string>>,
+): string =>
+  createHash("sha256")
+    .update(
+      Object.entries(fields)
+        .filter(([key]) => key !== "CheckMacValue")
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, value]) => `${key.length}:${key}:${value.length}:${value}`)
+        .join("|"),
+    )
+    .digest("hex");
+
+const redactedCallback = (
+  fields: Readonly<Record<string, string>>,
+): Readonly<Record<string, string>> => {
+  const allowlist = [
+    "MerchantID",
+    "MerchantTradeNo",
+    "TradeNo",
+    "TradeAmt",
+    "RtnCode",
+    "PaymentType",
+    "PaymentDate",
+    "SimulatePaid",
+  ] as const;
+  return Object.freeze(
+    Object.fromEntries(
+      allowlist.flatMap((key) =>
+        fields[key] === undefined ? [] : [[key, fields[key]]],
+      ),
+    ),
+  );
+};
 
 export async function POST(request: Request) {
   try {
@@ -54,20 +90,48 @@ export async function POST(request: Request) {
         401,
       );
     }
-    // A verified callback still has no payment authority. Until the durable
-    // inbox and QueryTradeInfo worker are bound, fail closed without returning
-    // the provider acknowledgement that would discard retries.
-    const fingerprint = createHash("sha256")
-      .update(createEcpayCheckMacValue(fields, { hashKey, hashIv }))
-      .digest("hex");
-    throw new CommerceDomainError(
-      "CALLBACK_INBOX_UNAVAILABLE",
-      "Verified callback could not be durably recorded.",
-      503,
-      { fingerprint },
-    );
+    const merchantTradeNo = fields.MerchantTradeNo;
+    if (!merchantTradeNo || !/^[A-Za-z0-9]{1,20}$/.test(merchantTradeNo)) {
+      throw new CommerceDomainError(
+        "INVALID_ECPAY_CALLBACK_IDENTITY",
+        "Callback merchant trade number is invalid.",
+        400,
+      );
+    }
+    const fingerprint = callbackFingerprint(fields);
+    const receipt =
+      await getWorkerOperationsRepository().recordPaymentCallback({
+        provider: "ecpay",
+        merchantTradeNo,
+        providerTradeNo:
+          typeof fields.TradeNo === "string" && fields.TradeNo.length > 0
+            ? fields.TradeNo
+            : null,
+        callbackStatus:
+          fields.RtnCode === "1"
+            ? "provider-reported-paid"
+            : `provider-code-${(fields.RtnCode ?? "missing").replace(/[^A-Za-z0-9_-]/g, "").slice(0, 32) || "invalid"}`,
+        fingerprint,
+        redactedPayload: redactedCallback(fields),
+      });
+    if (!receipt.reconciliationOperationKey) {
+      throw new CommerceDomainError(
+        "CALLBACK_RECONCILIATION_UNAVAILABLE",
+        "Verified callback was not paired with durable reconciliation.",
+        503,
+        { fingerprint },
+      );
+    }
+    const response = new Response(ECPAY_ACKNOWLEDGEMENT, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        "X-Robots-Tag": "noindex, nofollow, noarchive",
+      },
+    });
+    return response;
   } catch (error) {
     return commerceErrorResponse(error);
   }
 }
-

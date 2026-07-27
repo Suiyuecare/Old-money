@@ -2,23 +2,18 @@ import {
   audienceMetadata,
   categoryMetadata,
   collections,
-  getEffectiveSkuPrice,
-  getProductPriceRange,
-  getProductSearchDocument,
-  getSkusForProduct,
   isAudienceId,
-  isCategoryId,
-  isCollectionId,
-  isMaterialConceptId,
   materialConceptMetadata,
   normalizeCatalogSearchText,
   products as canonicalProducts,
   type AudienceId,
-  type CategoryId,
-  type CollectionId,
-  type MaterialConceptId,
-  type Product,
 } from "@/lib/catalog";
+import {
+  createCatalogSnapshotIndex,
+  createEstateNo01Snapshot,
+  type CatalogSnapshotIndex,
+  type PublishedProduct,
+} from "@/lib/catalog-runtime";
 
 export const catalogSortOptions = [
   { value: "featured", label: "莊園選品順序" },
@@ -31,11 +26,11 @@ export type CatalogSort = (typeof catalogSortOptions)[number]["value"];
 
 export interface CatalogQueryState {
   readonly q: string;
-  readonly category: readonly CategoryId[];
+  readonly category: readonly string[];
   readonly audience: readonly AudienceId[];
-  readonly collection: readonly CollectionId[];
+  readonly collection: readonly string[];
   readonly color: readonly string[];
-  readonly material: readonly MaterialConceptId[];
+  readonly material: readonly string[];
   readonly min?: number;
   readonly max?: number;
   readonly sort: CatalogSort;
@@ -72,12 +67,20 @@ export const catalogColorOptions = canonicalProducts.reduce<
   return options;
 }, []);
 const colorOrder = catalogColorOptions.map(({ value }) => value);
-const colorValues = new Set(colorOrder);
-const materialOrder = Object.keys(materialConceptMetadata) as MaterialConceptId[];
+const materialOrder = Object.keys(materialConceptMetadata);
 const sortValues = new Set<CatalogSort>(catalogSortOptions.map(({ value }) => value));
 const canonicalProductOrder = new Map<string, number>(
   canonicalProducts.map((product, index) => [product.id, index]),
 );
+const estateNo01Catalog = createCatalogSnapshotIndex(
+  createEstateNo01Snapshot(),
+);
+
+const facetIdentifierPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
+function isFacetIdentifier(value: string): value is string {
+  return value.length <= 80 && facetIdentifierPattern.test(value);
+}
 
 function orderedUnique<T extends string>(
   values: readonly string[],
@@ -85,7 +88,13 @@ function orderedUnique<T extends string>(
   order: readonly T[],
 ): T[] {
   const selected = new Set(values.filter(valid));
-  return order.filter((value) => selected.has(value));
+  const preferred = new Set<string>(order);
+  return [
+    ...order.filter((value) => selected.has(value)),
+    ...[...selected]
+      .filter((value) => !preferred.has(value))
+      .sort(compareText),
+  ];
 }
 
 function parseInclusiveInteger(value: string | null): number | undefined {
@@ -114,17 +123,25 @@ export function parseCatalogQuery(params: SearchParamReader): CatalogQueryState 
 
   return {
     q: normalizeQuery(params.get("q") ?? ""),
-    category: orderedUnique(params.getAll("category"), isCategoryId, categoryOrder),
+    category: orderedUnique(
+      params.getAll("category"),
+      isFacetIdentifier,
+      categoryOrder,
+    ),
     audience: orderedUnique(params.getAll("audience"), isAudienceId, audienceOrder),
-    collection: orderedUnique(params.getAll("collection"), isCollectionId, collectionOrder),
+    collection: orderedUnique(
+      params.getAll("collection"),
+      isFacetIdentifier,
+      collectionOrder,
+    ),
     color: orderedUnique(
       params.getAll("color"),
-      (value): value is string => colorValues.has(value),
+      isFacetIdentifier,
       colorOrder,
     ),
     material: orderedUnique(
       params.getAll("material"),
-      isMaterialConceptId,
+      isFacetIdentifier,
       materialOrder,
     ),
     min: parseInclusiveInteger(params.get("min")),
@@ -156,15 +173,23 @@ export function serializeCatalogQuery(state: CatalogQueryState): string {
 export function normalizeCatalogQueryState(state: CatalogQueryState): CatalogQueryState {
   return {
     q: normalizeQuery(state.q),
-    category: orderedUnique(state.category, isCategoryId, categoryOrder),
+    category: orderedUnique(state.category, isFacetIdentifier, categoryOrder),
     audience: orderedUnique(state.audience, isAudienceId, audienceOrder),
-    collection: orderedUnique(state.collection, isCollectionId, collectionOrder),
+    collection: orderedUnique(
+      state.collection,
+      isFacetIdentifier,
+      collectionOrder,
+    ),
     color: orderedUnique(
       state.color,
-      (value): value is string => colorValues.has(value),
+      isFacetIdentifier,
       colorOrder,
     ),
-    material: orderedUnique(state.material, isMaterialConceptId, materialOrder),
+    material: orderedUnique(
+      state.material,
+      isFacetIdentifier,
+      materialOrder,
+    ),
     min:
       state.min !== undefined && Number.isSafeInteger(state.min) && state.min >= 0
         ? state.min
@@ -304,14 +329,16 @@ export class CatalogQueryCoordinator {
 }
 
 function productHasPriceInRange(
-  product: Product,
+  product: PublishedProduct,
   min: number | undefined,
   max: number | undefined,
+  catalog: CatalogSnapshotIndex,
 ): boolean {
   if (min === undefined && max === undefined) return true;
 
-  const skuPrices = getSkusForProduct(product.id)
-    .map(getEffectiveSkuPrice)
+  const skuPrices = catalog
+    .getSkusForProduct(product.id)
+    .map((sku) => catalog.getEffectiveSkuPrice(sku))
     .filter((price): price is number => price !== undefined);
   const prices = skuPrices.length > 0 ? skuPrices : [product.basePriceTwd];
 
@@ -325,27 +352,55 @@ function compareText(left: string, right: string): number {
   return left < right ? -1 : 1;
 }
 
-function stableProductFallback(left: Product, right: Product): number {
+function stableProductFallback(
+  left: PublishedProduct,
+  right: PublishedProduct,
+): number {
+  const launchPositionDifference =
+    left.launchPosition - right.launchPosition;
+  if (launchPositionDifference !== 0) return launchPositionDifference;
   const leftIndex = canonicalProductOrder.get(left.id) ?? Number.MAX_SAFE_INTEGER;
   const rightIndex = canonicalProductOrder.get(right.id) ?? Number.MAX_SAFE_INTEGER;
   return leftIndex - rightIndex || compareText(left.slug, right.slug);
 }
 
 export function filterAndSortProducts(
-  sourceProducts: readonly Product[],
+  sourceProducts: readonly PublishedProduct[],
   rawState: CatalogQueryState,
-): Product[] {
+  catalog: CatalogSnapshotIndex = estateNo01Catalog,
+): PublishedProduct[] {
   const state = normalizeCatalogQueryState(rawState);
   const tokens = normalizeCatalogSearchText(state.q).split(" ").filter(Boolean);
 
   const matches = sourceProducts.filter((product) => {
     if (tokens.length > 0) {
-      const document = getProductSearchDocument(product);
+      const document = normalizeCatalogSearchText(
+        [
+          product.name,
+          product.subtitle,
+          product.description,
+          product.story,
+          product.kind,
+          product.category,
+          product.collectionId,
+          product.audience,
+          ...product.materialConcepts,
+        ].join(" "),
+      );
       if (!tokens.every((token) => document.includes(token))) return false;
     }
-    if (state.category.length > 0 && !state.category.includes(product.category)) return false;
-    if (state.audience.length > 0 && !state.audience.includes(product.audience)) return false;
-    if (state.collection.length > 0 && !state.collection.includes(product.collectionId)) {
+    if (
+      state.category.length > 0 &&
+      !state.category.includes(product.category)
+    ) return false;
+    if (
+      state.audience.length > 0 &&
+      !state.audience.includes(product.audience as AudienceId)
+    ) return false;
+    if (
+      state.collection.length > 0 &&
+      !state.collection.includes(product.collectionId)
+    ) {
       return false;
     }
     if (state.color.length > 0) {
@@ -354,24 +409,26 @@ export function filterAndSortProducts(
     }
     if (
       state.material.length > 0 &&
-      !product.materialConcepts.some((material) => state.material.includes(material))
+      !product.materialConcepts.some((material) =>
+        state.material.includes(material),
+      )
     ) {
       return false;
     }
-    return productHasPriceInRange(product, state.min, state.max);
+    return productHasPriceInRange(product, state.min, state.max, catalog);
   });
 
   return matches.toSorted((left, right) => {
     if (state.sort === "price-asc") {
       const difference =
-        (getProductPriceRange(left.id)?.min ?? left.basePriceTwd) -
-        (getProductPriceRange(right.id)?.min ?? right.basePriceTwd);
+        (catalog.getProductPriceRange(left.id)?.min ?? left.basePriceTwd) -
+        (catalog.getProductPriceRange(right.id)?.min ?? right.basePriceTwd);
       return difference || stableProductFallback(left, right);
     }
     if (state.sort === "price-desc") {
       const difference =
-        (getProductPriceRange(right.id)?.max ?? right.basePriceTwd) -
-        (getProductPriceRange(left.id)?.max ?? left.basePriceTwd);
+        (catalog.getProductPriceRange(right.id)?.max ?? right.basePriceTwd) -
+        (catalog.getProductPriceRange(left.id)?.max ?? left.basePriceTwd);
       return difference || stableProductFallback(left, right);
     }
     if (state.sort === "name-asc") {
