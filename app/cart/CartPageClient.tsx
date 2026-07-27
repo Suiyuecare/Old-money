@@ -134,7 +134,7 @@ export function CartPageClient() {
             <div>
               <span>
                 {amountUntilFreeShippingTwd === 0
-                  ? "已享台灣地區免運"
+                  ? "已享台灣本島免運"
                   : `再選購 ${formatTwd(amountUntilFreeShippingTwd)} 即享免運`}
               </span>
               <span aria-hidden="true">
@@ -153,7 +153,7 @@ export function CartPageClient() {
               <dd>{formatTwd(subtotalTwd)}</dd>
             </div>
             <div>
-              <dt>台灣地區配送</dt>
+              <dt>台灣本島配送</dt>
               <dd>{shippingTwd === 0 ? "免運" : formatTwd(shippingTwd)}</dd>
             </div>
             <div>
@@ -169,7 +169,7 @@ export function CartPageClient() {
           </p>
           <div className={styles.serviceDetails}>
             <p><strong>14 日服務草案</strong> 原型以到貨後 14 日內提出申請為規劃方向；正式條款仍待法律審閱。</p>
-            <p><strong>International</strong> 國際配送尚未開放。</p>
+            <p><strong>Delivery scope</strong> V1 僅限台灣本島。</p>
           </div>
         </aside>
       </div>

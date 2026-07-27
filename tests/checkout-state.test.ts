@@ -13,6 +13,7 @@ import {
 } from "@/app/checkout/CheckoutSessionProvider";
 
 const COMPLETION: CompletionSnapshot = {
+  demoOrderPublicId: "DEMO-000001",
   itemCount: 2,
   subtotalTwd: 15_600,
   shippingTwd: 0,
@@ -37,12 +38,25 @@ describe("preview detail boundary", () => {
         address: "一段看似真實的地址",
       }),
     ).toEqual({
-      recipient: "請保留 1–60 字的虛構收件稱呼。",
-      email: "預覽模式只接受以 .invalid 結尾的虛構信箱。",
-      postalCode: "預覽模式請使用虛構郵遞區號 00000。",
-      region: "請選擇預覽用配送區域。",
-      address: "地址必須明確包含「虛構」，且不超過 100 字。",
+      recipient: "請保留 1–60 字的 Sandbox 收件稱呼。",
+      email: "Sandbox 只接受以 .invalid 結尾的測試信箱。",
+      postalCode: "Sandbox 請使用測試郵遞區號 00000。",
+      region: "V1 只接受台灣本島預覽配送區域。",
+      address: "地址必須明確包含「Sandbox」，且不超過 100 字。",
     });
+  });
+
+  it("rejects every preview region except the Taiwan main-island sentinel", () => {
+    for (const region of [
+      "preview-offshore",
+      "preview-international",
+      "taiwan",
+      "",
+    ]) {
+      expect(
+        validatePreviewDetails({ ...SAFE_PREVIEW_DETAILS, region }).region,
+      ).toBe("V1 只接受台灣本島預覽配送區域。");
+    }
   });
 });
 

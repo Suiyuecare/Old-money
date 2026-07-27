@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond } from "next/font/google";
 import localFont from "next/font/local";
 import { headers } from "next/headers";
 import { StoreProvider } from "@/components/store/StoreProvider";
@@ -10,13 +9,6 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import "@/components/site/site.css";
 import "./globals.css";
-
-const cormorant = Cormorant_Garamond({
-  variable: "--font-display-latin",
-  subsets: ["latin"],
-  display: "swap",
-  weight: ["400", "500", "600"],
-});
 
 const ming = localFont({
   src: "./fonts/lignee-ming-subset.woff2",
@@ -29,20 +21,14 @@ const ming = localFont({
   fallback: ["Songti TC", "PMingLiU", "MingLiU", "serif"],
 });
 
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
-  ? process.env.NEXT_PUBLIC_SITE_URL
-  : process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000";
-
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  metadataBase: new URL("https://estatelignee.com"),
   title: {
     default: "LIGNÉE — Made to Be Inherited.",
     template: "%s — LIGNÉE",
   },
   description:
-    "LIGNÉE 以當代英倫莊園生活為靈感，呈現值得長久相伴的衣著與日常物件。概念展示，不提供真實交易。",
+    "LIGNÉE 以 Alderwick House 與私人草地球場生活呈現 50 件 Estate No. 01 首發系列。Sandbox 展示，不提供真實交易。",
   robots: {
     index: false,
     follow: false,
@@ -55,20 +41,20 @@ export const metadata: Metadata = {
     locale: "zh_TW",
     siteName: "LIGNÉE",
     title: "LIGNÉE — Made to Be Inherited.",
-    description: "當代英倫莊園生活風格概念展示；不提供真實交易。",
+    description: "當代英倫宅邸與私人草地球場生活；Sandbox 不提供真實交易。",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "LIGNÉE — Made to Be Inherited. 概念展示",
+        alt: "LIGNÉE — Made to Be Inherited. Sandbox",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
     title: "LIGNÉE — Made to Be Inherited.",
-    description: "當代英倫莊園生活風格概念展示；不提供真實交易。",
+    description: "當代英倫宅邸與私人草地球場生活；Sandbox 不提供真實交易。",
     images: ["/og.png"],
   },
 };
@@ -88,7 +74,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html
       lang="zh-Hant"
-      className={`${cormorant.variable} ${ming.variable}`}
+      className={ming.variable}
       data-scroll-behavior="smooth"
     >
       <body>

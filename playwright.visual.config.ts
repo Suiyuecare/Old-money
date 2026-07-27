@@ -8,6 +8,7 @@ const visualViewports = [
 
 export default defineConfig({
   testDir: "./tests/visual",
+  globalSetup: "./tests/visual/global-setup.ts",
   fullyParallel: false,
   timeout: 90_000,
   expect: { timeout: 10_000 },
@@ -16,6 +17,12 @@ export default defineConfig({
   workers: 1,
   reporter: [["list"]],
   outputDir: "test-results/visual-qa",
+  webServer: {
+    command: "pnpm dev",
+    url: "http://127.0.0.1:3000",
+    reuseExistingServer: true,
+    timeout: 120_000,
+  },
   use: {
     baseURL: "http://127.0.0.1:3000",
     locale: "zh-TW",

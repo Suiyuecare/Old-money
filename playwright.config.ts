@@ -13,6 +13,12 @@ export default defineConfig({
     ["html", { open: "never" }],
   ],
   outputDir: "test-results",
+  webServer: {
+    command: "pnpm dev",
+    url: "http://127.0.0.1:3000",
+    reuseExistingServer: true,
+    timeout: 120_000,
+  },
   use: {
     baseURL: "http://127.0.0.1:3000",
     locale: "zh-TW",

@@ -2,6 +2,7 @@
   "name": "lignee-estate",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@11.2.2",
   "engines": {
     "node": ">=22.13.0"
   },
@@ -15,12 +16,23 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "test:visual": "playwright test --config=playwright.visual.config.ts",
-    "validate": "pnpm lint && pnpm typecheck && pnpm test"
+    "check:assets": "node scripts/check-assets.mjs",
+    "check:assets:private": "node scripts/check-private-assets.mjs",
+    "check:font": "node scripts/check-ming-font.mjs",
+    "check:copy": "node scripts/check-prohibited-copy.mjs",
+    "check:sql": "node scripts/check-sql-security.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "check:launch": "pnpm check:assets && pnpm check:font && pnpm check:copy && pnpm check:sql && pnpm check:secrets",
+    "validate": "pnpm check:launch && pnpm lint && pnpm typecheck && pnpm test"
   },
   "dependencies": {
+    "@supabase/ssr": "^0.12.3",
+    "@supabase/supabase-js": "^2.110.8",
     "next": "16.2.11",
     "react": "19.2.6",
     "react-dom": "19.2.6",
+    "react-email": "6.9.1",
+    "resend": "^6.18.0",
     "zod": "4.4.3"
   },
   "devDependencies": {
@@ -34,6 +46,7 @@
     "eslint": "9.39.4",
     "eslint-config-next": "16.2.11",
     "jsdom": "29.1.1",
+    "sharp": "^0.35.3",
     "typescript": "5.9.3",
     "vitest": "4.1.10"
   },

@@ -40,9 +40,10 @@ export function CheckoutCompleteClient() {
       <span className="eyebrow">A quiet conclusion</span>
       <h1>模擬結帳已完成</h1>
       <p>
-        這段前端體驗已結束，購物袋已清空。沒有傳送個資、沒有扣款，也沒有建立真實訂單或訂單編號。
+        Sandbox 流程已結束，購物袋已清空。沒有傳送表單個資、沒有扣款，也沒有建立正式訂單。
       </p>
       <dl className={styles.completionSummary}>
+        <div><dt>Sandbox 訂單</dt><dd>{completion.demoOrderPublicId}</dd></div>
         <div><dt>概念商品</dt><dd>{completion.itemCount} 件</dd></div>
         <div><dt>概念小計</dt><dd>{formatTwd(completion.subtotalTwd)}</dd></div>
         <div><dt>配送示意</dt><dd>{completion.shippingTwd === 0 ? "免運" : formatTwd(completion.shippingTwd)}</dd></div>

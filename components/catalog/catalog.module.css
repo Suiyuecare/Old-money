@@ -485,3 +485,42 @@
     scroll-behavior: auto;
   }
 }
+.withHero {
+  position: relative;
+  display: grid;
+  min-height: clamp(32rem, 63vw, 47rem);
+  overflow: hidden;
+  color: var(--white);
+}
+
+.withHero::after {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(18 23 19 / 72%), rgb(18 23 19 / 10%));
+  content: "";
+  pointer-events: none;
+}
+
+.withHero :global(.page-intro__inner) {
+  z-index: 2;
+  align-self: end;
+  width: min(100%, 1600px);
+  padding-block: clamp(4rem, 8vw, 7rem);
+}
+
+.withHero :global(.lede) {
+  color: rgb(255 254 249 / 82%);
+}
+
+.categoryHero,
+.categoryHero img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.categoryHero img {
+  object-fit: cover;
+}

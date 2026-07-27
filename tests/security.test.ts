@@ -32,11 +32,42 @@ describe("request CSP", () => {
     expect(parsed.get("frame-src")).toEqual(["'none'"]);
     expect(parsed.get("frame-ancestors")).toEqual(["'none'"]);
     expect(parsed.get("base-uri")).toEqual(["'self'"]);
-    expect(parsed.get("form-action")).toEqual(["'none'"]);
+    expect(parsed.get("form-action")).toEqual(["'self'"]);
     expect(parsed.get("upgrade-insecure-requests")).toEqual([]);
     expect(policy).not.toContain("'unsafe-eval'");
     expect(policy).not.toContain("*");
     expect(policy).not.toMatch(/https?:\/\//);
+  });
+
+  it("allows only the exact payment host on checkout routes in a configured mode", () => {
+    const demo = directives(
+      buildContentSecurityPolicy("nonce", false, {
+        pathname: "/checkout",
+        commerceMode: "demo",
+      }),
+    );
+    const live = directives(
+      buildContentSecurityPolicy("nonce", false, {
+        pathname: "/checkout/redirect",
+        commerceMode: "live",
+      }),
+    );
+    const disabled = directives(
+      buildContentSecurityPolicy("nonce", false, {
+        pathname: "/checkout",
+        commerceMode: "production-disabled",
+      }),
+    );
+
+    expect(demo.get("form-action")).toEqual([
+      "'self'",
+      "https://payment-stage.ecpay.com.tw",
+    ]);
+    expect(live.get("form-action")).toEqual([
+      "'self'",
+      "https://payment.ecpay.com.tw",
+    ]);
+    expect(disabled.get("form-action")).toEqual(["'self'"]);
   });
 
   it("adds only documented local development allowances", () => {

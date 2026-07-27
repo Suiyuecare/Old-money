@@ -26,7 +26,7 @@ export const WISHLIST_STORAGE_KEY = "lignee:wishlist";
 export const FREE_SHIPPING_THRESHOLD_TWD = 12_000;
 export const STANDARD_SHIPPING_TWD = 250;
 export const MIN_CART_QUANTITY = 1;
-export const MAX_CART_QUANTITY = 9;
+export const MAX_CART_QUANTITY = 3;
 
 /** Pure subtotal boundary used by the provider and commerce-state tests. */
 export const getShippingTwdForSubtotal = (subtotalTwd: number): number =>
@@ -37,6 +37,8 @@ export const getShippingTwdForSubtotal = (subtotalTwd: number): number =>
 export interface PersistedCartLine {
   readonly skuId: string;
   readonly quantity: number;
+  readonly lastSeenPriceVersion: string;
+  readonly lastSeenUnitPriceTwd: number;
 }
 
 export interface PersistedCartState {
@@ -62,6 +64,8 @@ export interface CartLineOptionViewModel {
  */
 export interface CartLineViewModel {
   readonly skuId: string;
+  readonly lastSeenPriceVersion: string;
+  readonly lastSeenUnitPriceTwd: number;
   readonly productId: string;
   readonly productSlug: string;
   readonly name: string;
@@ -152,7 +156,7 @@ export const decodeCart = (raw: string | null): DecodeResult<PersistedCartState>
     return { valid: false, value: EMPTY_CART, repairedEntries: 0 };
   }
 
-  const quantitiesBySku = new Map<string, number>();
+  const linesBySku = new Map<string, PersistedCartLine>();
   let repairedEntries = 0;
 
   for (const candidateLine of candidate.lines) {
@@ -166,24 +170,51 @@ export const decodeCart = (raw: string | null): DecodeResult<PersistedCartState>
       continue;
     }
 
-    const currentQuantity = quantitiesBySku.get(candidateLine.skuId);
-    if (currentQuantity !== undefined) {
+    const sku = getSkuById(candidateLine.skuId);
+    const unitPriceTwd = sku ? getEffectiveSkuPrice(sku) : undefined;
+    if (!sku || unitPriceTwd === undefined) {
       repairedEntries += 1;
-      quantitiesBySku.set(
+      continue;
+    }
+    const decodedLine: PersistedCartLine = {
+      skuId: candidateLine.skuId,
+      quantity: candidateLine.quantity,
+      lastSeenPriceVersion:
+        typeof candidateLine.lastSeenPriceVersion === "string"
+          ? candidateLine.lastSeenPriceVersion
+          : sku.priceVersion,
+      lastSeenUnitPriceTwd:
+        typeof candidateLine.lastSeenUnitPriceTwd === "number" &&
+        Number.isSafeInteger(candidateLine.lastSeenUnitPriceTwd) &&
+        candidateLine.lastSeenUnitPriceTwd >= 0
+          ? candidateLine.lastSeenUnitPriceTwd
+          : unitPriceTwd,
+    };
+
+    const current = linesBySku.get(candidateLine.skuId);
+    if (current !== undefined) {
+      repairedEntries += 1;
+      linesBySku.set(
         candidateLine.skuId,
-        Math.min(MAX_CART_QUANTITY, currentQuantity + candidateLine.quantity),
+        {
+          ...current,
+          quantity: Math.min(
+            MAX_CART_QUANTITY,
+            current.quantity + candidateLine.quantity,
+          ),
+        },
       );
       continue;
     }
 
-    quantitiesBySku.set(candidateLine.skuId, candidateLine.quantity);
+    linesBySku.set(candidateLine.skuId, decodedLine);
   }
 
   return {
     valid: true,
     value: {
       version: 1,
-      lines: Array.from(quantitiesBySku, ([skuId, quantity]) => ({ skuId, quantity })),
+      lines: Array.from(linesBySku.values()),
     },
     repairedEntries,
   };
@@ -265,6 +296,8 @@ export const resolveCartLine = (
 
   return {
     skuId: sku.id,
+    lastSeenPriceVersion: line.lastSeenPriceVersion,
+    lastSeenUnitPriceTwd: line.lastSeenUnitPriceTwd,
     productId: product.id,
     productSlug: product.slug,
     name: product.name,
@@ -435,7 +468,8 @@ export function StoreProvider({ children }: PropsWithChildren) {
 
       const sku = getSkuById(skuId);
       const product = sku ? getProductById(sku.productId) : undefined;
-      if (!sku || !product) {
+      const unitPriceTwd = sku ? getEffectiveSkuPrice(sku) : undefined;
+      if (!sku || !product || unitPriceTwd === undefined) {
         announce("此商品規格已不存在，未加入購物車。");
         return false;
       }
@@ -448,9 +482,24 @@ export function StoreProvider({ children }: PropsWithChildren) {
       );
       const nextLines = existing
         ? current.lines.map((line) =>
-            line.skuId === skuId ? { skuId, quantity: nextQuantity } : line,
+            line.skuId === skuId
+              ? {
+                  skuId,
+                  quantity: nextQuantity,
+                  lastSeenPriceVersion: sku.priceVersion,
+                  lastSeenUnitPriceTwd: unitPriceTwd,
+                }
+              : line,
           )
-        : [...current.lines, { skuId, quantity: nextQuantity }];
+        : [
+            ...current.lines,
+            {
+              skuId,
+              quantity: nextQuantity,
+              lastSeenPriceVersion: sku.priceVersion,
+              lastSeenUnitPriceTwd: unitPriceTwd,
+            },
+          ];
 
       commitCart({ version: 1, lines: nextLines });
       setCartDrawerOpenState(true);
@@ -473,7 +522,7 @@ export function StoreProvider({ children }: PropsWithChildren) {
       commitCart({
         version: 1,
         lines: current.lines.map((line) =>
-          line.skuId === skuId ? { skuId, quantity } : line,
+          line.skuId === skuId ? { ...line, quantity } : line,
         ),
       });
       const productName = getProductById(getSkuById(skuId)?.productId ?? "")?.name ?? "商品";

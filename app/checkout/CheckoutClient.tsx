@@ -13,6 +13,13 @@ import { useStore } from "@/components/store/StoreProvider";
 import styles from "@/components/store/store-ui.module.css";
 import { formatTwd } from "@/lib/catalog";
 import {
+  clearCheckoutCommand,
+  createCartRevision,
+  readCheckoutCommand,
+  writeCheckoutCommand,
+  type PersistedCheckoutCommand,
+} from "@/lib/commerce/checkout-command-storage";
+import {
   useCheckoutSession,
   validatePreviewDetails,
   type PaymentDemoChoice,
@@ -23,6 +30,26 @@ const paymentLabels: Readonly<Record<PaymentDemoChoice, string>> = {
   "card-planned": "信用卡（正式版規劃）",
   "apple-pay-planned": "Apple Pay（正式版規劃）",
 };
+
+interface ServerQuote {
+  readonly quoteDigest: string;
+  readonly merchandiseGrossTwd: number;
+  readonly grossTwd: number;
+  readonly shipping: { readonly grossTwd: number };
+  readonly lines: readonly {
+    readonly skuId: string;
+    readonly quantity: number;
+    readonly priceVersion: string;
+    readonly unitGrossTwd: number;
+    readonly lineGrossTwd: number;
+    readonly priceChanged: boolean;
+  }[];
+}
+
+type QuoteState =
+  | { readonly status: "idle" | "loading" }
+  | { readonly status: "ready"; readonly quote: ServerQuote }
+  | { readonly status: "error"; readonly message: string };
 
 export function CheckoutClient() {
   const router = useRouter();
@@ -39,13 +66,103 @@ export function CheckoutClient() {
   const [detailErrors, setDetailErrors] = useState<PreviewCheckoutErrors>({});
   const [paymentError, setPaymentError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [quoteState, setQuoteState] = useState<QuoteState>({ status: "idle" });
+  const [priceAcknowledged, setPriceAcknowledged] = useState(false);
+  const [orderError, setOrderError] = useState("");
   const errorSummaryRef = useRef<HTMLDivElement>(null);
   const stepHeadingRef = useRef<HTMLHeadingElement>(null);
   const submitLockRef = useRef(false);
+  const orderCommandRef = useRef<PersistedCheckoutCommand | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     stepHeadingRef.current?.focus();
   }, [checkout.step]);
+
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    const cartRevision = createCartRevision(cartLines);
+    if (
+      cartLines.length === 0 ||
+      (orderCommandRef.current &&
+        orderCommandRef.current.cartRevision !== cartRevision)
+    ) {
+      clearCheckoutCommand(window.sessionStorage);
+      orderCommandRef.current = undefined;
+    }
+  }, [cartLines, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated || cartLines.length === 0) {
+      queueMicrotask(() => setQuoteState({ status: "idle" }));
+      return;
+    }
+    const controller = new AbortController();
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) {
+        setQuoteState({ status: "loading" });
+        setPriceAcknowledged(false);
+      }
+    });
+    void fetch("/api/catalog/quote", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        lines: cartLines.map((line) => ({
+          skuId: line.skuId,
+          quantity: line.quantity,
+          lastSeenPriceVersion: line.lastSeenPriceVersion,
+          lastSeenUnitPriceTwd: line.lastSeenUnitPriceTwd,
+        })),
+      }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("QUOTE_REJECTED");
+        const body = (await response.json()) as {
+          readonly totals?: ServerQuote;
+          readonly lines?: ServerQuote["lines"];
+          readonly quoteDigest?: string;
+        };
+        if (
+          !body.totals ||
+          !body.quoteDigest ||
+          !/^[a-f0-9]{64}$/.test(body.quoteDigest) ||
+          !Number.isSafeInteger(body.totals.grossTwd) ||
+          !Number.isSafeInteger(body.totals.merchandiseGrossTwd)
+        ) {
+          throw new Error("QUOTE_INVALID");
+        }
+        setQuoteState({
+          status: "ready",
+          quote: {
+            ...body.totals,
+            quoteDigest: body.quoteDigest,
+            lines: body.lines ?? [],
+          },
+        });
+        setPriceAcknowledged(!(body.lines ?? []).some((line) => line.priceChanged));
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setQuoteState({
+          status: "error",
+          message: "無法取得伺服器價格確認；為保護金額完整性，本次流程已停止。",
+        });
+      });
+    return () => controller.abort();
+  }, [cartLines, hydrated]);
+
+  useEffect(() => {
+    if (quoteState.status !== "ready" || typeof window === "undefined") return;
+    const cartRevision = createCartRevision(cartLines);
+    orderCommandRef.current = readCheckoutCommand(
+      window.sessionStorage,
+      cartRevision,
+      quoteState.quote.quoteDigest,
+    );
+  }, [cartLines, quoteState]);
 
   const focusErrors = () => {
     window.requestAnimationFrame(() => errorSummaryRef.current?.focus());
@@ -64,6 +181,11 @@ export function CheckoutClient() {
 
   const submitPaymentDemo = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (quoteState.status !== "ready") {
+      setPaymentError("尚未完成伺服器價格確認，請稍候或重新載入頁面。");
+      focusErrors();
+      return;
+    }
     if (checkout.paymentChoice === null || !checkout.goToReview()) {
       setPaymentError("請選擇一個正式版規劃中的付款方式，僅作畫面示意。");
       focusErrors();
@@ -72,26 +194,125 @@ export function CheckoutClient() {
     setPaymentError("");
   };
 
-  const finishPrototype = () => {
-    if (submitLockRef.current || cartLines.length === 0) return;
-    submitLockRef.current = true;
-    setSubmitting(true);
-
-    const accepted = checkout.markCompleted({
-      itemCount: cartItemCount,
-      subtotalTwd,
-      shippingTwd,
-      totalTwd,
-    });
-    if (!accepted) {
-      submitLockRef.current = false;
-      setSubmitting(false);
-      checkout.goToDetails();
+  const finishPrototype = async () => {
+    if (
+      submitLockRef.current ||
+      cartLines.length === 0 ||
+      quoteState.status !== "ready"
+    ) {
       return;
     }
+    const quote = quoteState.quote;
+    const acknowledgementRequired = quote.lines.some((line) => line.priceChanged);
+    if (acknowledgementRequired && !priceAcknowledged) {
+      setOrderError("請先勾選「我已確認目前價格」，再完成模擬結帳。");
+      focusErrors();
+      return;
+    }
+    submitLockRef.current = true;
+    setSubmitting(true);
+    setOrderError("");
 
-    clearCart();
-    router.replace("/checkout/complete");
+    try {
+      const cartRevision = createCartRevision(cartLines);
+      let command = orderCommandRef.current;
+      if (
+        !command ||
+        command.cartRevision !== cartRevision ||
+        command.quoteDigest !== quote.quoteDigest
+      ) {
+        command =
+          readCheckoutCommand(
+            window.sessionStorage,
+            cartRevision,
+            quote.quoteDigest,
+          ) ??
+          Object.freeze({
+            cartRevision,
+            quoteDigest: quote.quoteDigest,
+            idempotencyKey: `demo-ui:${crypto.randomUUID()}`,
+          });
+        writeCheckoutCommand(window.sessionStorage, command);
+        orderCommandRef.current = command;
+      }
+      const response = await fetch("/api/checkout/orders", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          idempotencyKey: command.idempotencyKey,
+          confirmationToken: "demo-confirmation-token-00000000000000000000",
+          emailVerificationToken: "demo-email-token-000000",
+          cart: {
+            lines: quote.lines.map((line) => ({
+              skuId: line.skuId,
+              quantity: line.quantity,
+              lastSeenPriceVersion: line.priceVersion,
+              lastSeenUnitPriceTwd: line.unitGrossTwd,
+              acceptedQuoteDigest: quote.quoteDigest,
+            })),
+          },
+        }),
+      });
+      const body = (await response.json()) as {
+        readonly order?: { readonly publicId?: string };
+        readonly error?: {
+          readonly code?: string;
+          readonly details?: {
+            readonly quote?: {
+              readonly quoteDigest?: string;
+              readonly lines: ServerQuote["lines"];
+              readonly totals?: Omit<ServerQuote, "quoteDigest" | "lines">;
+            };
+          };
+        };
+      };
+      if (!response.ok || !body.order?.publicId) {
+        const currentQuote = body.error?.details?.quote;
+        if (
+          response.status === 409 &&
+          body.error?.code === "PRICE_CHANGED" &&
+          currentQuote?.totals &&
+          currentQuote.quoteDigest
+        ) {
+          setQuoteState({
+            status: "ready",
+            quote: {
+              ...currentQuote.totals,
+              quoteDigest: currentQuote.quoteDigest,
+              lines: currentQuote.lines,
+            },
+          });
+          setPriceAcknowledged(false);
+          setOrderError("價格已更新；請重新檢視摘要並確認目前價格。");
+          submitLockRef.current = false;
+          setSubmitting(false);
+          focusErrors();
+          return;
+        }
+        throw new Error("ORDER_REJECTED");
+      }
+
+      const accepted = checkout.markCompleted({
+        demoOrderPublicId: body.order.publicId,
+        itemCount: cartItemCount,
+        subtotalTwd: quote.merchandiseGrossTwd,
+        shippingTwd: quote.shipping.grossTwd,
+        totalTwd: quote.grossTwd,
+      });
+      if (!accepted) throw new Error("CHECKOUT_STATE_REJECTED");
+
+      clearCheckoutCommand(window.sessionStorage);
+      orderCommandRef.current = undefined;
+      clearCart();
+      router.replace("/checkout/complete");
+    } catch {
+      submitLockRef.current = false;
+      setSubmitting(false);
+      setOrderError(
+        "Sandbox 訂單命令未完成。購物袋仍保留，且沒有啟動付款或建立正式訂單。",
+      );
+      focusErrors();
+    }
   };
 
   if (!hydrated) {
@@ -122,13 +343,13 @@ export function CheckoutClient() {
       <header className={styles.checkoutHeader}>
         <span className="eyebrow">Private checkout preview</span>
         <h1>模擬結帳</h1>
-        <p>三個步驟只存在目前頁面的記憶體；重新整理後將安全重設。</p>
+        <p>欄位只存在目前頁面；同一分頁僅保存不含個資的重試識別，以避免重複建立 Sandbox 紀錄。</p>
       </header>
 
       <div className={styles.checkoutWarning} role="note">
         <strong>請勿輸入真實個資</strong>
         <p>
-          欄位已預填明顯虛構的 <code>.invalid</code> 範例。本原型不送出、不保存、不分析任何欄位值。
+          欄位已預填明確的 Sandbox <code>.invalid</code> 範例。本模式不送出、不保存、不分析任何欄位值。
         </p>
       </div>
 
@@ -150,7 +371,7 @@ export function CheckoutClient() {
             <form autoComplete="off" noValidate onSubmit={submitDetails}>
               <span className={styles.stepKicker}>Step 01</span>
               <h2 ref={stepHeadingRef} tabIndex={-1}>配送資料示意</h2>
-              <p className={styles.stepIntro}>只能使用虛構資料；真實版將另行提供安全的資料處理說明。</p>
+              <p className={styles.stepIntro}>只能使用 Sandbox 資料；正式處理須完成環境與法務啟用條件。</p>
 
               {detailErrorCount > 0 ? (
                 <div
@@ -170,7 +391,7 @@ export function CheckoutClient() {
 
               <div className={styles.checkoutFields}>
                 <label className={styles.checkoutField}>
-                  <span>虛構收件稱呼</span>
+                  <span>Sandbox 收件稱呼</span>
                   <input
                     id="checkout-recipient"
                     type="text"
@@ -184,7 +405,7 @@ export function CheckoutClient() {
                   {detailErrors.recipient ? <small id="checkout-recipient-error">{detailErrors.recipient}</small> : null}
                 </label>
                 <label className={styles.checkoutField}>
-                  <span>虛構聯絡信箱</span>
+                  <span>Sandbox 聯絡信箱</span>
                   <input
                     id="checkout-email"
                     type="email"
@@ -199,7 +420,7 @@ export function CheckoutClient() {
                   {detailErrors.email ? <small id="checkout-email-error">{detailErrors.email}</small> : null}
                 </label>
                 <label className={styles.checkoutField}>
-                  <span>虛構郵遞區號</span>
+                  <span>Sandbox 郵遞區號</span>
                   <input
                     id="checkout-postalCode"
                     type="text"
@@ -223,12 +444,11 @@ export function CheckoutClient() {
                     onChange={(event) => checkout.updateDetail("region", event.target.value)}
                   >
                     <option value="preview-main-island">台灣本島・預覽</option>
-                    <option value="preview-offshore">台灣離島・預覽</option>
                   </select>
                   {detailErrors.region ? <small id="checkout-region-error">{detailErrors.region}</small> : null}
                 </label>
                 <label className={`${styles.checkoutField} ${styles.fullField}`}>
-                  <span>虛構配送地址</span>
+                  <span>Sandbox 配送地址</span>
                   <input
                     id="checkout-address"
                     type="text"
@@ -304,11 +524,23 @@ export function CheckoutClient() {
             <div>
               <span className={styles.stepKicker}>Step 03</span>
               <h2 ref={stepHeadingRef} tabIndex={-1}>確認概念摘要</h2>
-              <p className={styles.stepIntro}>完成後只會清空購物袋並顯示模擬完成頁，不會產生訂單編號。</p>
+              <p className={styles.stepIntro}>完成後會以伺服器命令建立可重播的 Sandbox 訂單紀錄；不會啟動付款或產生正式訂單。</p>
+
+              {orderError ? (
+                <div
+                  className={styles.formErrorSummary}
+                  ref={errorSummaryRef}
+                  role="alert"
+                  tabIndex={-1}
+                >
+                  <strong>Sandbox 訂單未建立</strong>
+                  <p>{orderError}</p>
+                </div>
+              ) : null}
 
               <div className={styles.reviewBlocks}>
                 <section>
-                  <h3>虛構配送資料</h3>
+                  <h3>Sandbox 配送資料</h3>
                   <p>{checkout.details.recipient}</p>
                   <p>{checkout.details.email}</p>
                   <p>{checkout.details.postalCode} · {checkout.details.address}</p>
@@ -324,8 +556,21 @@ export function CheckoutClient() {
 
               <div className={styles.finalConsent}>
                 <strong>這不是購買按鈕</strong>
-                <p>按下後只完成前端體驗，所有虛構聯絡與地址資料將隨流程離開而清除。</p>
+                <p>按下後只完成 Sandbox 體驗，所有聯絡與地址測試資料將隨流程離開而清除。</p>
               </div>
+
+              {quoteState.status === "ready" &&
+              quoteState.quote.lines.some((line) => line.priceChanged) ? (
+                <label className={styles.finalConsent}>
+                  <input
+                    type="checkbox"
+                    checked={priceAcknowledged}
+                    onChange={(event) => setPriceAcknowledged(event.target.checked)}
+                  />
+                  <strong>我已確認目前價格</strong>
+                  <span>摘要與送出資料均採用目前伺服器價格。</span>
+                </label>
+              ) : null}
 
               <div className={styles.stageActions}>
                 <button className={styles.secondaryButton} type="button" onClick={() => checkout.goToPayment()}>
@@ -334,8 +579,13 @@ export function CheckoutClient() {
                 <button
                   className={styles.primaryButton}
                   type="button"
-                  disabled={submitting}
-                  onClick={finishPrototype}
+                  disabled={
+                    submitting ||
+                    (quoteState.status === "ready" &&
+                      quoteState.quote.lines.some((line) => line.priceChanged) &&
+                      !priceAcknowledged)
+                  }
+                  onClick={() => void finishPrototype()}
                 >
                   {submitting ? "正在完成預覽…" : "完成模擬結帳"}
                 </button>
@@ -353,17 +603,41 @@ export function CheckoutClient() {
                 <div>
                   <strong>{line.name} × {line.quantity}</strong>
                   <span>{line.options.map((option) => option.valueLabel).join(" · ")}</span>
+                  {quoteState.status === "ready" ? (
+                    <small>
+                      每件{" "}
+                      {formatTwd(
+                        quoteState.quote.lines.find(
+                          (quotedLine) => quotedLine.skuId === line.skuId,
+                        )?.unitGrossTwd ?? line.unitPriceTwd,
+                      )}
+                    </small>
+                  ) : null}
                 </div>
-                <span>{formatTwd(line.lineTotalTwd)}</span>
+                <span>
+                  {formatTwd(
+                    quoteState.status === "ready"
+                      ? quoteState.quote.lines.find(
+                          (quotedLine) => quotedLine.skuId === line.skuId,
+                        )?.lineGrossTwd ?? line.lineTotalTwd
+                      : line.lineTotalTwd,
+                  )}
+                </span>
               </li>
             ))}
           </ul>
           <dl className={styles.orderTotals}>
-            <div><dt>商品小計</dt><dd>{formatTwd(subtotalTwd)}</dd></div>
-            <div><dt>配送</dt><dd>{shippingTwd === 0 ? "免運" : formatTwd(shippingTwd)}</dd></div>
-            <div><dt>概念合計</dt><dd>{formatTwd(totalTwd)}</dd></div>
+            <div><dt>商品小計</dt><dd>{formatTwd(quoteState.status === "ready" ? quoteState.quote.merchandiseGrossTwd : subtotalTwd)}</dd></div>
+            <div><dt>配送</dt><dd>{(quoteState.status === "ready" ? quoteState.quote.shipping.grossTwd : shippingTwd) === 0 ? "免運" : formatTwd(quoteState.status === "ready" ? quoteState.quote.shipping.grossTwd : shippingTwd)}</dd></div>
+            <div><dt>概念合計</dt><dd>{formatTwd(quoteState.status === "ready" ? quoteState.quote.grossTwd : totalTwd)}</dd></div>
           </dl>
-          <p className={styles.prototypeNotice}>台灣地區配送示意；國際配送尚未開放。</p>
+          {quoteState.status === "loading" ? <p role="status">正在向伺服器確認價格…</p> : null}
+          {quoteState.status === "error" ? <p role="alert">{quoteState.message}</p> : null}
+          {quoteState.status === "ready" ? <p role="status">伺服器價格已確認。</p> : null}
+          {quoteState.status === "ready" && quoteState.quote.lines.some((line) => line.priceChanged) ? (
+            <p role="status">價格版本已有更新，摘要已採用目前伺服器價格。</p>
+          ) : null}
+          <p className={styles.prototypeNotice}>V1 僅提供台灣本島配送示意。</p>
         </aside>
       </div>
     </div>

@@ -6,6 +6,19 @@ export function proxy(request: NextRequest) {
   const contentSecurityPolicy = buildContentSecurityPolicy(
     nonce,
     process.env.NODE_ENV === "development",
+    {
+      pathname: request.nextUrl.pathname,
+      commerceMode:
+        process.env.LIGNEE_MODE === "live"
+          ? "live"
+          : process.env.LIGNEE_MODE === "demo"
+            ? "demo"
+            : process.env.LIGNEE_MODE === "production-disabled"
+            ? "production-disabled"
+            : process.env.NODE_ENV === "production"
+              ? "production-disabled"
+              : "demo",
+    },
   );
   const requestHeaders = new Headers(request.headers);
   requestHeaders.set("x-nonce", nonce);
@@ -23,13 +36,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    {
-      source: "/((?!api|_next/|favicon.ico|images/).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
-  ],
+  matcher: ["/((?!api|_next/|favicon.ico|images/).*)"],
 };

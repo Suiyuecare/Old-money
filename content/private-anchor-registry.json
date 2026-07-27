@@ -1,0 +1,45 @@
+{
+  "revision": "private-anchor-registry-v1",
+  "anchors": [
+    {
+      "id": "anchor-male-01",
+      "ignoredLocalPath": ".private/visual-anchors/male-01-source-v2.png",
+      "sha256": "99badb03b2f08f97372d0d3634171b50320c5583c9baa65f5d47fd213e5558ce"
+    },
+    {
+      "id": "anchor-male-02",
+      "ignoredLocalPath": ".private/visual-anchors/male-02-source-v2.png",
+      "sha256": "0a8a2e035375bd76439a14392da3088ae2507e96ac0b95a78d7e3e72e3086407"
+    },
+    {
+      "id": "anchor-male-03",
+      "ignoredLocalPath": ".private/visual-anchors/male-03-source-v2.png",
+      "sha256": "7e4823c258d91eec53a525ed8d51058f7701727ffbe0566b418d3cfff68a858c"
+    },
+    {
+      "id": "anchor-male-04",
+      "ignoredLocalPath": ".private/visual-anchors/male-04-source-v2.png",
+      "sha256": "ad6a84a59083e09aaa11af9414fdf5ec02c0740ca824182e3cc46cdff98395bf"
+    },
+    {
+      "id": "anchor-female-01",
+      "ignoredLocalPath": ".private/visual-anchors/female-01-source-v2.png",
+      "sha256": "9c9e53ca3391ab4b0fec27f073e23c72bfd1142eabd8390dbc2a2153eeb36ef9"
+    },
+    {
+      "id": "anchor-female-02",
+      "ignoredLocalPath": ".private/visual-anchors/female-02-source-v2.png",
+      "sha256": "5874eeebb7ddd5d4a8f85aa2cd40637a18f54b80ee632ac59d116567121b9b2f"
+    },
+    {
+      "id": "anchor-female-03",
+      "ignoredLocalPath": ".private/visual-anchors/female-03-source-v2.png",
+      "sha256": "b78601dbb0f3cab46e938e38e2ce4efc4ef75d94b25bbd2edc00488bf5a8347f"
+    },
+    {
+      "id": "anchor-female-04",
+      "ignoredLocalPath": ".private/visual-anchors/female-04-source-v2.png",
+      "sha256": "c56d625b0d9ebc6d9e829fdafb2ee43aff8f4dd13544f1366076e7009623eace"
+    }
+  ]
+}

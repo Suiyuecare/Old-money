@@ -40,9 +40,9 @@ describe("catalog query parsing and canonical serialization", () => {
           "collection=dinner-at-the-long-table",
           "collection=first-light-in-the-field",
           "color=not-a-color",
-          "color=deep-olive",
-          "material=brass-concept",
-          "material=cotton-pique",
+          "color=estate-olive",
+          "material=metal-direction",
+          "material=cotton-direction",
           "min=0007800",
           "max=12.5",
           "sort=not-a-sort",
@@ -55,8 +55,8 @@ describe("catalog query parsing and canonical serialization", () => {
       category: ["apparel", "home"],
       audience: ["men", "unisex"],
       collection: ["first-light-in-the-field", "dinner-at-the-long-table"],
-      color: ["deep-olive"],
-      material: ["cotton-pique", "brass-concept"],
+      color: ["estate-olive"],
+      material: ["cotton-direction", "metal-direction"],
       min: 7800,
       max: undefined,
       sort: "featured",
@@ -67,8 +67,8 @@ describe("catalog query parsing and canonical serialization", () => {
         "&audience=men&audience=unisex" +
         "&collection=first-light-in-the-field" +
         "&collection=dinner-at-the-long-table" +
-        "&color=deep-olive" +
-        "&material=cotton-pique&material=brass-concept" +
+        "&color=estate-olive" +
+        "&material=cotton-direction&material=metal-direction" +
         "&min=7800",
     );
   });
@@ -103,36 +103,39 @@ describe("catalog search, facet, range, and sort semantics", () => {
     ).toEqual([
       "field-house-polo",
       "alder-oxford-shirt",
+      "bracken-riding-blazer",
       "keeper-bermuda-shorts",
       "long-table-tie",
+      "signet-cufflinks",
     ]);
 
     expect(
       productIds(
         queryState({
           category: ["accessories"],
-          material: ["leather-concept", "silk-weave"],
+          material: ["leather-direction", "silk-direction"],
         }),
       ),
     ).toEqual([
       "bridle-line-belt",
-      "rain-ledger-watch",
-      "glasshouse-tote",
       "estate-dispatch-briefcase",
       "long-table-tie",
+      "bridle-loafers",
+      "keeper-riding-boots",
+      "house-colours-silk-scarf",
     ]);
   });
 
   it("includes both price boundaries and matches when any effective SKU price is in range", () => {
-    expect(productIds(queryState({ min: 64_000, max: 64_000 }))).toContain(
-      "rain-ledger-watch",
+    expect(productIds(queryState({ min: 36_800, max: 36_800 }))).toEqual([
+      "north-hall-overcoat",
+    ]);
+    expect(productIds(queryState({ min: 36_801 }))).not.toContain(
+      "north-hall-overcoat",
     );
-    expect(productIds(queryState({ min: 64_001 }))).not.toContain(
-      "rain-ledger-watch",
-    );
-    expect(productIds(queryState({ max: 58_000 }))).toContain("rain-ledger-watch");
-    expect(productIds(queryState({ max: 57_999 }))).not.toContain(
-      "rain-ledger-watch",
+    expect(productIds(queryState({ max: 36_800 }))).toContain("north-hall-overcoat");
+    expect(productIds(queryState({ max: 36_799 }))).not.toContain(
+      "north-hall-overcoat",
     );
   });
 
@@ -149,8 +152,8 @@ describe("catalog search, facet, range, and sort semantics", () => {
       "bridle-line-belt",
     ]);
     expect(productIds(queryState({ sort: "price-desc" }), source)).toEqual([
-      "estate-ledger-notebook",
       "bridle-line-belt",
+      "estate-ledger-notebook",
     ]);
   });
 });

@@ -20,8 +20,12 @@ import {
   useStore,
 } from "@/components/store/StoreProvider";
 
-const KNOWN_SKU_ID = "field-house-polo-m-deep-olive";
+const KNOWN_SKU_ID = "field-house-polo-s-estate-olive";
 const KNOWN_PRODUCT_ID = "field-house-polo";
+const KNOWN_PRICE_SNAPSHOT = {
+  lastSeenPriceVersion: "sandbox-2026-07-24-v1",
+  lastSeenUnitPriceTwd: 7_800,
+} as const;
 
 afterEach(() => {
   cleanup();
@@ -64,7 +68,16 @@ describe("cart storage decoding", () => {
       ),
     ).toEqual({
       valid: true,
-      value: { version: 1, lines: [{ skuId: KNOWN_SKU_ID, quantity: 2 }] },
+      value: {
+        version: 1,
+        lines: [
+          {
+            skuId: KNOWN_SKU_ID,
+            quantity: 2,
+            ...KNOWN_PRICE_SNAPSHOT,
+          },
+        ],
+      },
       repairedEntries: 1,
     });
   });
@@ -88,13 +101,13 @@ describe("cart storage decoding", () => {
     },
   );
 
-  it("merges duplicate SKU lines and caps their combined quantity at nine", () => {
+  it("merges duplicate SKU lines and caps their combined quantity at three", () => {
     const decoded = decodeCart(
       JSON.stringify({
         version: 1,
         lines: [
-          { skuId: KNOWN_SKU_ID, quantity: 6 },
-          { skuId: KNOWN_SKU_ID, quantity: 5 },
+          { skuId: KNOWN_SKU_ID, quantity: 2 },
+          { skuId: KNOWN_SKU_ID, quantity: 2 },
         ],
       }),
     );
@@ -103,15 +116,33 @@ describe("cart storage decoding", () => {
       valid: true,
       value: {
         version: 1,
-        lines: [{ skuId: KNOWN_SKU_ID, quantity: MAX_CART_QUANTITY }],
+        lines: [
+          {
+            skuId: KNOWN_SKU_ID,
+            quantity: MAX_CART_QUANTITY,
+            ...KNOWN_PRICE_SNAPSHOT,
+          },
+        ],
       },
       repairedEntries: 1,
     });
   });
 
   it("resolves display data exclusively from the canonical SKU and catalog", () => {
-    expect(resolveCartLine({ skuId: "unknown-sku", quantity: 1 })).toBeUndefined();
-    expect(resolveCartLine({ skuId: KNOWN_SKU_ID, quantity: 2 })).toMatchObject({
+    expect(
+      resolveCartLine({
+        skuId: "unknown-sku",
+        quantity: 1,
+        ...KNOWN_PRICE_SNAPSHOT,
+      }),
+    ).toBeUndefined();
+    expect(
+      resolveCartLine({
+        skuId: KNOWN_SKU_ID,
+        quantity: 2,
+        ...KNOWN_PRICE_SNAPSHOT,
+      }),
+    ).toMatchObject({
       skuId: KNOWN_SKU_ID,
       productId: KNOWN_PRODUCT_ID,
       quantity: 2,

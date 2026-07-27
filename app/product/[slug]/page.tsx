@@ -1,22 +1,20 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { ProductDetailClient } from "@/components/products/ProductDetailClient";
+import { SafeJsonLd } from "@/components/seo/SafeJsonLd";
+import { getCommerceEnvironment } from "@/lib/commerce/config";
 import {
   getProductBySlug,
   getRelatedProducts,
-  products,
 } from "@/lib/catalog";
 
 interface ProductPageProps {
   readonly params: Promise<{ readonly slug: string }>;
 }
 
-export const dynamicParams = false;
-
-export function generateStaticParams() {
-  return products.map((product) => ({ slug: product.slug }));
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({
   params,
@@ -50,6 +48,10 @@ export async function generateMetadata({
       description: socialDescription,
       images: [product.image.path],
     },
+    alternates: {
+      canonical: `https://estatelignee.com/product/${product.slug}`,
+    },
+    robots: { index: false, follow: false },
   };
 }
 
@@ -58,12 +60,34 @@ export default async function ProductPage({ params }: ProductPageProps) {
   const product = getProductBySlug(slug);
 
   if (!product) notFound();
+  const nonce = (await headers()).get("x-nonce") ?? "";
+  const allowStructuredOffer = getCommerceEnvironment().controls.searchIndexEnabled;
 
   return (
-    <ProductDetailClient
-      key={product.id}
-      product={product}
-      relatedProducts={getRelatedProducts(product.id)}
-    />
+    <>
+      {allowStructuredOffer ? (
+        <SafeJsonLd nonce={nonce} value={{
+          "@context": "https://schema.org",
+          "@type": "Product",
+          name: product.name,
+          description: product.description,
+          image: [`https://estatelignee.com${product.image.path}`],
+          sku: product.productCode,
+          brand: { "@type": "Brand", name: "LIGNÉE" },
+          offers: {
+            "@type": "Offer",
+            priceCurrency: "TWD",
+            price: product.basePriceTwd,
+            availability: "https://schema.org/InStock",
+            url: `https://estatelignee.com/product/${product.slug}`,
+          },
+        }} />
+      ) : null}
+      <ProductDetailClient
+        key={product.id}
+        product={product}
+        relatedProducts={getRelatedProducts(product.id)}
+      />
+    </>
   );
 }

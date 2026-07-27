@@ -43,7 +43,7 @@ export default function PrivacyPage() {
             <p>
               LIGNÉE 目前是一個無法交易的高擬真概念網站。原型不建立會員帳戶、不處理付款、不建立真實訂單，也未串接行銷分析、客服、電子報寄送或預約系統。
             </p>
-            <p>請只使用頁面預填的虛構資料，例如以 <code>.invalid</code> 結尾的示範信箱。</p>
+            <p>Sandbox 請只使用頁面預填的測試資料，例如以 <code>.invalid</code> 結尾的示範信箱。</p>
           </section>
 
           <section className={styles.policySection} id="forms">

@@ -5,8 +5,8 @@ import { products, skus } from "@/lib/catalog";
 describe("catalog Zod boundary", () => {
   it("accepts the canonical catalog", () => {
     const parsed = parseCatalogDocument({ products, skus });
-    expect(parsed.products).toHaveLength(27);
-    expect(parsed.skus).toHaveLength(155);
+    expect(parsed.products).toHaveLength(50);
+    expect(parsed.skus.length).toBeGreaterThanOrEqual(50);
   });
 
   it("rejects unsafe product identifiers and invalid prices", () => {

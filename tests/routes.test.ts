@@ -22,9 +22,11 @@ const staticRoutePaths = [
   "/accessories",
   "/home",
   "/stationery",
+  "/tennis",
   "/search",
   "/collections",
   "/journal",
+  "/lookbook",
   "/wishlist",
   "/cart",
   "/checkout",
@@ -32,6 +34,11 @@ const staticRoutePaths = [
   "/story",
   "/private-appointment",
   "/shipping-returns",
+  "/payment",
+  "/care-repair",
+  "/orders",
+  "/orders/access",
+  "/admin",
   "/privacy",
   "/terms",
 ] as const;
@@ -46,7 +53,7 @@ describe("reachable route manifest", () => {
       "/__lignee-route-not-found__",
     ];
 
-    expect(routeManifest).toHaveLength(55);
+    expect(routeManifest).toHaveLength(87);
     expect(routeManifest.map((route) => route.path)).toEqual(expectedPaths);
     expect(new Set(expectedPaths).size).toBe(expectedPaths.length);
   });
@@ -76,8 +83,20 @@ describe("reachable route manifest", () => {
     ];
 
     for (const path of navigationPaths) {
-      expect(getRouteManifestEntry(path), `missing navigation route ${path}`).toBeDefined();
+      const pathname = new URL(path, "https://estatelignee.com").pathname;
+      expect(
+        getRouteManifestEntry(pathname),
+        `missing navigation route ${path}`,
+      ).toBeDefined();
     }
+  });
+
+  it("exposes separate men and women entries in the primary apparel navigation", () => {
+    expect(primaryNavigation.slice(0, 2)).toEqual([
+      { label: "男士", labelEn: "Men", href: "/men" },
+      { label: "女士", labelEn: "Women", href: "/women" },
+    ]);
+    expect(primaryNavigation.map((item) => String(item.label))).not.toContain("服飾");
   });
 
   it("uses stable, concrete, uniquely indexed paths and IDs", () => {

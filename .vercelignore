@@ -1,6 +1,7 @@
 .git
 .next
 .openai
+.private
 .vercel
 .vinext
 .wrangler
@@ -14,6 +15,10 @@ test-results
 dist
 outputs
 work
+
+.env
+.env.*
+supabase/.temp
 
 *.log
 .DS_Store

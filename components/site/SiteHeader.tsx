@@ -38,7 +38,7 @@ export function SiteHeader() {
         <BrandMark compact />
 
         <nav className="desktop-nav" aria-label="主要導覽">
-          {primaryNavigation.slice(0, 6).map((item) => (
+          {primaryNavigation.slice(0, 7).map((item) => (
             <Link key={item.href} href={item.href}>
               {item.label}
             </Link>

@@ -12,8 +12,9 @@ export default function ShopPage() {
     <CatalogPage
       eyebrow="The complete estate collection"
       title="全部選品"
-      description="從田野衣著、溫室配件，到藏書室與長桌上的日常器物。二十七件首發作品，共同構成一座當代莊園的生活節奏。"
+      description={`從田野衣著、溫室配件，到藏書室、長桌與草地球場。${products.length} 件首發作品，共同構成一座當代莊園的生活節奏。`}
       products={products}
+      heroCategory="apparel"
     />
   );
 }

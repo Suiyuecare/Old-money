@@ -1,0 +1,125 @@
+{
+  "revision": "asset-review-record-v1",
+  "generatedAt": "2026-07-24",
+  "inventorySha256": "3a2811f4487b9150158a3006dd4477e4cec56e08ea825f600c3bdec180fb6d27",
+  "contactSheets": [
+    {
+      "ignoredLocalPath": "artifacts/asset-review/product-main-contact-sheet.png",
+      "sha256": "4faf5d5d585d1174e90b09bbf9a29a762c4f5615874405f450d8de6e1a97b87d",
+      "width": 1176,
+      "height": 3316
+    },
+    {
+      "ignoredLocalPath": "artifacts/asset-review/lifestyle-contact-sheet.png",
+      "sha256": "d44eca163038e8c109b28e41f7219da42fce441042566308cb6cf74a93e37c54",
+      "width": 1280,
+      "height": 2302
+    }
+  ],
+  "sourceSheets": [
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-01.png",
+      "sha256": "ec788ec15ad119be9590cf0f039a962ca1b98e78e9febd6075e546e5a11a0669"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-02.png",
+      "sha256": "2733a1097e6f72fb4373553f80873afafd86858a452d3d67cc84e360f1dc0ec0"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-03.png",
+      "sha256": "6337fadd52d40d76fef33548d29ed1e523e0dd6bf354798886bce83d854ef439"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-04.png",
+      "sha256": "de250351ce7dd4c417f4d38410da7bbcb408a0bc281ad5b9e1a48382a780d40f"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-05.png",
+      "sha256": "60c90736caeec8504215fcee524de12547296e2d42f9cc9190ee511d9230b640"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-06.png",
+      "sha256": "869065f94273733b3d44427f0f994d4f3e4ea34b1f620c20679450c74ecd7cb9"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-07.png",
+      "sha256": "b1ea17634ce50723f54fcbe2093d04598ecc32001cc7b925b2663468023f3df5"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-08.png",
+      "sha256": "27f9a90a6bc1a74d76d39067b65ad344b81f01976fc9e5474615b0f1d38aa7c0"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-09.png",
+      "sha256": "a2607fa3c614125d3c957138c49091e51fe6d9a690382b08476de457e3f19544"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-10.png",
+      "sha256": "82057795c4bbb571c73680dc32dbdc4c4fb64a83e5767d184e16c6df03914b23"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-11.png",
+      "sha256": "541b1812f6b824d72e153a27119513fc1ae3de1f9664759b75b6d236396b4772"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-12.png",
+      "sha256": "faa1cabf83bdbd43b4dd2ba0f49a2203ecbc871583c65225333fb720fdba041d"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/products-13.png",
+      "sha256": "df8eaf9c1555fe483aacdd06619d9440bbdd6bca0aa2e0e0b80f08ef14751f0b"
+    },
+    {
+      "ignoredLocalPath": ".private/product-source-sheets/library-bookends-override.png",
+      "sha256": "c113f08fd298a6b6fff29acf9b9602ee41ff353854eaa979b0eb3eb7db68c3f3"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/estate-01.png",
+      "sha256": "2134b4b96046165103ba01d5754f2974a9be89c1cf155656224ef600fe607a95"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/estate-02.png",
+      "sha256": "f6511698e19037d42dfa475574e759392b7c9502b6d5a02e0debcee040a57e16"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/estate-03.png",
+      "sha256": "13c316a0f3eb83e894ff404fd700c9e3e0e8f6a4d2e3680754044ac807a62eb6"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/estate-04.png",
+      "sha256": "f4e1717cf3f83ed6ed2633c22a497bcc253e58a9cdb521d5a6eac48187f5175a"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/estate-05.png",
+      "sha256": "a92149b0e0cee312074bd3cb077ad5ac8494970d741459c93a609e08ba999979"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/estate-06.png",
+      "sha256": "7d79067f7339fd2f9a130d1b6d2042f2f486593713eeb2e227742fb85934d727"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/estate-18-override.png",
+      "sha256": "88541f58e0c8cab5daa3a64bf08cff776f2ebe64b256b4f25be59fe5b184e3c9"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/tennis-01.png",
+      "sha256": "e3d47d87a32e90497993d52049b3acf37850720e118b3a3d82ca64c8f2f94ae1"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/tennis-02.png",
+      "sha256": "bab74da61a3a454d32f15c315e5bf9bf2231461cd74f8c95b3ac68db8607a48d"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/tennis-03.png",
+      "sha256": "35be4ad28ee8c43cfb8be69e3e071cd76ed93e5fac0fc1d362a785ff1e6fb7f2"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/tennis-05-override.png",
+      "sha256": "55a910321b8305368952b4601604f5988ba0bbf1d0612f77d114b9bface3ddd3"
+    },
+    {
+      "ignoredLocalPath": ".private/lifestyle-source-sheets/tennis-09-override.png",
+      "sha256": "46f465a014a5a8e0284d5b27729f48fa87a3922464c9ac9f47044d6a81af7bbf"
+    }
+  ]
+}

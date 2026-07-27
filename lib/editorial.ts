@@ -1,10 +1,11 @@
-export type EditorialImagePath = `/images/editorial/${string}.webp`;
+export type EditorialImagePath = `/images/${string}.webp`;
 
 export type CollectionId =
   | "first-light-in-the-field"
   | "the-conservatory-hour"
   | "after-rain-the-library"
-  | "dinner-at-the-long-table";
+  | "dinner-at-the-long-table"
+  | "the-private-court";
 
 export interface EditorialLink {
   readonly label: string;
@@ -85,7 +86,7 @@ export const estateCollections = [
     moment: "17:10 — The library",
     summary: "把潮濕外衣留在門邊，讓皮革、紙張與木頭接續午後。",
     description: [
-      "雨聲停下後，藏書室仍保留一點昏暗。桌上的腕錶、筆記本與公事包，不急著證明身分，只安靜承接被記下的事。",
+      "雨聲停下後，藏書室仍保留一點昏暗。桌上的書信筆、筆記本與公事包，不急著證明身分，只安靜承接被記下的事。",
       "本章收攏書寫、收納與隨身物件，以耐看的比例和觸感，留住一段可以專注的時間。",
     ],
     image: "/images/editorial/after-rain-the-library.webp",
@@ -109,6 +110,21 @@ export const estateCollections = [
       "當代英國莊園的長桌晚餐場景，成熟女性與紳士在克制燭光中交談",
     href: "/collections/dinner-at-the-long-table",
   },
+  {
+    id: "the-private-court",
+    slug: "the-private-court",
+    title: "The Private Court",
+    titleZh: "私人草地球場",
+    moment: "16:30 — The grass court",
+    summary: "白線、短草與會所露台，為午後比賽留下恰好的節奏。",
+    description: [
+      "球場是宅邸生活的一部分。服裝必須回應步伐、擊球與午後氣候，也能自然走回會所露台。",
+      "本章以十件球場單品構成 LIGNÉE 的運動衣櫥；所有性能、安全與材質名稱都須在正式發布前完成驗證。",
+    ],
+    image: "/images/lifestyle/tennis-scene-09-v3.webp",
+    imageAlt: "成熟男女在私人草地網球場進行友誼賽的 LIGNÉE Sandbox 編輯影像",
+    href: "/collections/the-private-court",
+  },
 ] as const satisfies readonly EstateCollection[];
 
 export const estateJournalEntries = [
@@ -125,7 +141,7 @@ export const estateJournalEntries = [
       "鄉野衣著真正可貴之處，不在於複製某個年代，而在於懂得回應天候與動作。牛津襯衫可以挽起袖口，西裝外套應容許自在步行，百慕達短褲也需要足夠克制的長度。每一件衣服都先服務生活，再成為風格。",
       "回程時，獵犬已先一步走向屋門。鞋底帶回少許泥土，衣料留下晨風的溫度。這些微小痕跡不必被立刻抹去；它們讓物件逐漸屬於使用它的人。",
     ],
-    image: "/images/editorial/before-the-house-wakes.webp",
+    image: "/images/editorial/first-light-in-the-field.webp",
     imageAlt:
       "清晨的英國鄉間步道上，一位穿著現代剪裁服裝的紳士與獵犬同行",
     readingTime: "閱讀約 3 分鐘",
@@ -144,8 +160,7 @@ export const estateJournalEntries = [
       "穿著也可以保留同樣的分寸。長洋裝順著步伐移動，針織停在身體附近，珍珠只接住一瞬光線。真正耐看的組合通常不靠層層裝飾，而是讓材質、輪廓與人的姿態彼此留有餘地。",
       "桌邊的花器不必盛滿。幾枝從庭園帶回的葉片，已足以記錄季節。當日常物件不再急著成為焦點，房間裡的人反而更容易被看見。",
     ],
-    image:
-      "/images/editorial/the-quiet-geometry-of-a-conservatory.webp",
+    image: "/images/editorial/the-conservatory-hour.webp",
     imageAlt:
       "英國莊園玻璃溫室內，一位當代成熟女性在植物與午後斜光之間整理花枝",
     readingTime: "閱讀約 3 分鐘",
@@ -160,13 +175,13 @@ export const estateJournalEntries = [
     excerpt:
       "有些念頭需要等雨停，才知道值得寫下的是結論，還是窗邊那段沉默。",
     body: [
-      "雨落在高窗上時，藏書室裡的時間會變得較慢。外套留在門邊，手錶擱在書頁旁；短暫離開行程的刻度，專注便有了重新安放的位置。",
+      "雨落在高窗上時，藏書室裡的時間會變得較慢。外套留在門邊，筆記本攤在書頁旁；短暫離開行程的刻度，專注便有了重新安放的位置。",
       "書寫工具之所以能被長久使用，往往不是因為它們格外醒目。一本能平整攤開的筆記本、一支重量安定的筆、一只替零碎物件保留秩序的木盤，都以很小的方式減少干擾。日復一日，它們才形成書桌的性格。",
       "窗外漸亮時，不必急著完成整頁。留下日期、幾行觀察，或下一個月想記得的事，已經足夠。被保存的從來不只是文字，而是當時願意停下來的自己。",
     ],
-    image: "/images/editorial/notes-kept-after-rain.webp",
+    image: "/images/editorial/after-rain-the-library.webp",
     imageAlt:
-      "雨後藏書室窗邊的木桌，一雙手正在筆記本上書寫，旁邊放著腕錶",
+      "雨後藏書室窗邊的木桌，一雙手正在筆記本上書寫，旁邊放著書信筆",
     readingTime: "閱讀約 3 分鐘",
     href: "/journal/notes-kept-after-rain",
   },
@@ -183,20 +198,38 @@ export const estateJournalEntries = [
       "好的款待更接近一種留心：替晚到的人留一張椅子，讓香氣不蓋過食物，也讓手邊器物經得起反覆取用。當物件不要求被小心供奉，談話才能自然越過一道又一道菜。",
       "客人離席後，杯底留下淡淡水痕，房間仍保有笑聲散去後的暖意。值得傳下去的，或許不是一套從未缺角的器皿，而是人們願意再次圍坐的習慣。",
     ],
-    image: "/images/editorial/a-table-made-for-time.webp",
+    image: "/images/editorial/dinner-at-the-long-table.webp",
     imageAlt:
       "燭光下的英國莊園長桌，玻璃杯、木托盤與自然垂落的織品準備迎接晚餐",
     readingTime: "閱讀約 3 分鐘",
     href: "/journal/a-table-made-for-time",
   },
+  {
+    id: "journal-the-measure-of-a-grass-court",
+    slug: "the-measure-of-a-grass-court",
+    collectionId: "the-private-court",
+    title: "The Measure of a Grass Court",
+    titleZh: "草地球場的分寸",
+    excerpt: "球場的白線規定界內與界外；真正的分寸，則留在每一次擊球與等待之間。",
+    body: [
+      "午後的草地仍留著修剪後的氣味。球拍、鞋履與服裝先回應動作，再談姿態；沒有一件物品應該讓比賽變成表演。",
+      "好的球場衣櫥必須容許大步移動、轉身與發球。剪裁保持克制，性能則需要可被測量與驗證。正式系列只會在每項材料、結構與安全證據完成後發布。",
+      "比賽結束，球被收回筒中，球拍留在長椅旁。值得記得的不是比分，而是仍願意再打一盤的餘裕。",
+    ],
+    image: "/images/lifestyle/tennis-scene-06.webp",
+    imageAlt: "私人草地網球場與會所露台的 LIGNÉE Sandbox 編輯影像",
+    readingTime: "閱讀約 3 分鐘",
+    href: "/journal/the-measure-of-a-grass-court",
+  },
 ] as const satisfies readonly EstateJournalEntry[];
 
 export const primaryNavigation = [
-  { label: "男裝", labelEn: "Men", href: "/men" },
-  { label: "女裝", labelEn: "Women", href: "/women" },
+  { label: "男士", labelEn: "Men", href: "/men" },
+  { label: "女士", labelEn: "Women", href: "/women" },
   { label: "配件", labelEn: "Accessories", href: "/accessories" },
-  { label: "居家", labelEn: "Home", href: "/home" },
-  { label: "文具", labelEn: "Writing", href: "/stationery" },
+  { label: "居家生活", labelEn: "Home", href: "/home" },
+  { label: "文具", labelEn: "Stationery", href: "/stationery" },
+  { label: "網球運動", labelEn: "Tennis", href: "/tennis" },
   { label: "莊園篇章", labelEn: "Collections", href: "/collections" },
   { label: "Estate Journal", href: "/journal" },
 ] as const satisfies readonly EditorialLink[];
@@ -206,11 +239,12 @@ export const footerNavigationGroups = [
     title: "選購",
     links: [
       { label: "全部商品", labelEn: "Shop All", href: "/shop" },
-      { label: "男裝", labelEn: "Men", href: "/men" },
-      { label: "女裝", labelEn: "Women", href: "/women" },
+      { label: "男士", labelEn: "Men", href: "/men" },
+      { label: "女士", labelEn: "Women", href: "/women" },
       { label: "配件", labelEn: "Accessories", href: "/accessories" },
       { label: "居家生活", labelEn: "Home", href: "/home" },
       { label: "文具", labelEn: "Writing", href: "/stationery" },
+      { label: "網球運動", labelEn: "Tennis", href: "/tennis" },
     ],
   },
   {
@@ -218,6 +252,7 @@ export const footerNavigationGroups = [
     links: [
       { label: "莊園篇章", labelEn: "Collections", href: "/collections" },
       { label: "Estate Journal", href: "/journal" },
+      { label: "Estate Lookbook", href: "/lookbook" },
       { label: "品牌故事", labelEn: "Our Story", href: "/story" },
       {
         label: "私人選品預約",
@@ -242,10 +277,10 @@ export const brandStory = {
   eyebrow: "The Lignée Estate",
   title: "一座為當代生活而寫的莊園",
   lead:
-    "The Lignée Estate 並非一段等待考證的家族史，而是 LIGNÉE 所創作的當代英倫地景：一處讓衣著、物件與日常禮節重新取得分寸的想像居所。",
+    "Alderwick House 是 LIGNÉE 的品牌宅邸與生活篇章：一處讓衣著、物件與日常禮節重新取得分寸的當代英倫地景。",
   paragraphs: [
-    "故事從清晨田野開始，經過午後溫室、雨後藏書室，最後抵達長桌晚餐。莊園裡的人保持匿名，因為我們關心的不是姓氏或爵位，而是人如何照料一件衣服、如何為來客留一張椅子，以及如何把時間留給值得反覆做的事。",
-    "馬術、獵犬與林野活動構成這個世界的節奏，卻不成為炫耀的象徵。服裝屬於當代，物件應當被使用；自然留下的摺痕、磨痕與光澤，是生活與材質共同完成的部分。",
+    "一天從清晨田野開始，經過午後溫室、雨後藏書室與私人草地球場，最後抵達長桌晚餐。我們關心的是人如何照料一件衣服、如何為來客留一張椅子，以及如何把時間留給值得反覆做的事。",
+    "馬術、網球與林野活動構成宅邸的節奏，卻不成為炫耀的象徵。服裝屬於當代，物件應當被使用；自然留下的摺痕、磨痕與光澤，是生活與材質共同完成的部分。",
     "Made to Be Inherited. 不是關於擁有一段被安排好的出身，而是選擇讓什麼留得更久。LIGNÉE 以克制的輪廓、安靜的色彩與可照料的日常物件，提出一種不被季節迅速帶走的生活方式。",
   ],
   principles: [
@@ -265,11 +300,11 @@ export const brandStory = {
       title: "Story with Clear Boundaries",
       titleZh: "故事與事實，各有位置",
       description:
-        "莊園是虛構的品牌世界；材質、產地與製程則只會在獲得確認後，作為商品事實呈現。",
+        "品牌篇章不取代商品事實；材質、產地與製程只會在獲得確認後正式呈現。",
     },
   ],
-  fictionNotice:
-    "The Lignée Estate 為 LIGNÉE 的原創虛構世界觀，不代表可查證的英國莊園、家族譜系或企業沿革。商品規格於概念階段僅作設計方向說明。",
+  provenanceNotice:
+    "Alderwick House 不對外主張可參觀地址、家族譜系、爵位、皇家關係或英國製造來源。Sandbox 商品規格僅作開發方向，正式事實以完成審核的商品標示為準。",
 } as const;
 
 export const lettersFromTheEstate = {
@@ -319,7 +354,7 @@ export const privateAppointment = {
   form: {
     title: "預留一段對話",
     description:
-      "請以頁面提供的虛構範例體驗表單；此版本不接收真實姓名、電話、信箱或其他個人資料。",
+      "請使用頁面提供的 Sandbox 範例體驗表單；此版本不接收真實姓名、電話、信箱或其他個人資料。",
     submitLabel: "送出展示預約",
     privacyNotice:
       "請勿輸入真實個資。所有欄位只存在目前頁面記憶體，不會傳送或保存，重新整理後即清除。",

@@ -1,196 +1,179 @@
-import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
+
 import {
-  ASSET_GENERATED_AT,
-  ASSET_SOURCE,
-  ASSET_STATUS,
-  PROMPT_AUDIT_PROVENANCE,
   assetManifest,
   assetManifestSummary,
+  getAssetManifestEntryByPath,
+  privateAnchorManifest,
 } from "@/content/asset-manifest";
 import { products } from "@/lib/catalog";
 import { estateCollections, estateJournalEntries } from "@/lib/editorial";
+import {
+  categoryHeroAssets,
+  lookbookAssets,
+} from "@/lib/visual-inventory";
 
-const WORKSPACE_ROOT = resolve(import.meta.dirname, "..");
+const workspaceRoot = resolve(import.meta.dirname, "..");
 
-function readWebpDimensions(filePath: string): {
-  width: number;
-  height: number;
-} {
-  const bytes = readFileSync(filePath);
-  expect(bytes.toString("ascii", 0, 4)).toBe("RIFF");
-  expect(bytes.toString("ascii", 8, 12)).toBe("WEBP");
-
-  let offset = 12;
-  while (offset + 8 <= bytes.length) {
-    const chunkType = bytes.toString("ascii", offset, offset + 4);
-    const chunkLength = bytes.readUInt32LE(offset + 4);
-    const dataOffset = offset + 8;
-
-    if (chunkType === "VP8 ") {
-      return {
-        width: bytes.readUInt16LE(dataOffset + 6) & 0x3fff,
-        height: bytes.readUInt16LE(dataOffset + 8) & 0x3fff,
-      };
-    }
-
-    if (chunkType === "VP8L") {
-      const packed = bytes.readUInt32LE(dataOffset + 1);
-      return {
-        width: (packed & 0x3fff) + 1,
-        height: ((packed >>> 14) & 0x3fff) + 1,
-      };
-    }
-
-    if (chunkType === "VP8X") {
-      return {
-        width: bytes.readUIntLE(dataOffset + 4, 3) + 1,
-        height: bytes.readUIntLE(dataOffset + 7, 3) + 1,
-      };
-    }
-
-    offset = dataOffset + chunkLength + (chunkLength % 2);
-  }
-
-  throw new Error(`No WebP image dimension chunk found in ${filePath}`);
-}
-
-describe("asset governance manifest", () => {
-  it("covers exactly the canonical 27 product and 8 editorial images", () => {
-    expect(assetManifest).toHaveLength(35);
+describe("visual inventory governance", () => {
+  it("locks the required 150-public-asset role split", () => {
+    expect(assetManifest).toHaveLength(150);
     expect(assetManifestSummary).toEqual({
-      productImages: 27,
-      editorialImages: 8,
-      totalImages: 35,
+      productMain: 50,
+      productDetail: 50,
+      estateLifestyle: 24,
+      tennisLifestyle: 12,
+      categories: 10,
+      storyHeroes: 4,
+      publicTotal: 150,
+      privateIdentitySources: 8,
     });
-
-    const expectedPaths = [
-      ...products.map((product) => product.image.path),
-      ...estateCollections.map((collection) => collection.image),
-      ...estateJournalEntries.map((entry) => entry.image),
-    ];
-
-    expect(assetManifest.map((asset) => asset.path)).toEqual(expectedPaths);
+    expect(new Set(assetManifest.map(({ id }) => id))).toHaveLength(150);
   });
 
-  it("keeps identity, paths, provenance, and governance fields complete", () => {
-    expect(new Set(assetManifest.map((asset) => asset.id)).size).toBe(35);
-    expect(new Set(assetManifest.map((asset) => asset.path)).size).toBe(35);
-    expect(new Set(assetManifest.map((asset) => asset.promptHash)).size).toBe(35);
-
-    for (const asset of assetManifest) {
-      expect(asset.id).toMatch(/^[a-z0-9]+(?:-[a-z0-9]+)*$/);
-      expect(asset.path).toMatch(/^\/images\/(products|editorial)\/[a-z0-9-]+\.webp$/);
-      expect(asset.source).toBe(ASSET_SOURCE);
-      expect(asset.status).toBe(ASSET_STATUS);
-      expect(asset.generatedAt).toBe(ASSET_GENERATED_AT);
-      expect(asset.promptSource).toMatch(
-        /^canonical-copy:lib\/(catalog|editorial)\.ts#[a-z0-9-]+$/,
+  it("has one main and one detail record for every product", () => {
+    for (const product of products) {
+      expect(assetManifest).toContainEqual(
+        expect.objectContaining({
+          role: "product-main",
+          productId: product.id,
+          skuId: product.image.picturedSkuId,
+          variants: expect.objectContaining({ webp: product.image.path }),
+        }),
       );
-      expect(asset.promptHash).toMatch(/^audit-id:[a-z0-9-]+:2026-07-22$/);
-      expect(asset.promptHashProvenance).toBe(PROMPT_AUDIT_PROVENANCE);
+      expect(assetManifest).toContainEqual(
+        expect.objectContaining({
+          role: "product-detail",
+          productId: product.id,
+          skuId: product.image.picturedSkuId,
+          variants: expect.objectContaining({ webp: product.image.detailPath }),
+        }),
+      );
+    }
+  });
+
+  it("keeps both public encodings present, hashed, dimensioned, and launch-gated", () => {
+    for (const asset of assetManifest) {
+      expect(asset.status).toBe("sandbox_review");
+      expect(asset.visibility).toBe("public");
+      expect(asset.rights).toEqual({
+        state: "internal-sandbox-only",
+        finalClearanceRequired: true,
+      });
+      expect(asset.qa.humanFinalApproval).toBe(false);
+      expect(asset.qa.physicalProductMatch).toBe(false);
+      expect(asset.sha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(asset.avifSha256).toMatch(/^[a-f0-9]{64}$/);
+      expect(asset.width).toBeGreaterThanOrEqual(900);
+      expect(asset.height).toBeGreaterThanOrEqual(900);
       expect(asset.alt.trim().length).toBeGreaterThan(0);
-      expect(asset.notes).toContain("AI-generated fictional");
-      expect(asset.notes).toContain("Human visual review");
-      expect(asset.notes).toContain("no recognizable public-person reference");
-      expect(asset.notes).toContain("third-party logo");
-      expect(asset.notes).toContain("not");
-      expect(asset.notes).toContain("real");
-      expect(asset.qa.status).toBe(ASSET_STATUS);
-      expect(asset.qa.method).toBe("human visual review");
-      expect(Object.values(asset.qa.checklist).every(Boolean)).toBe(true);
-      expect(asset.qa.limitations.length).toBeGreaterThan(40);
-      expect(asset.originalWidth).toBeGreaterThan(0);
-      expect(asset.originalHeight).toBeGreaterThan(0);
-      expect(asset.fileSizeBytes).toBeGreaterThan(0);
-      expect(["4:5", "3:2"]).toContain(asset.displayAspectRatio);
       expect(asset.focus.x).toBeGreaterThanOrEqual(0);
       expect(asset.focus.x).toBeLessThanOrEqual(1);
       expect(asset.focus.y).toBeGreaterThanOrEqual(0);
       expect(asset.focus.y).toBeLessThanOrEqual(1);
-    }
-  });
 
-  it("maps depicted product, collection, journal, and SKU IDs without ambiguity", () => {
-    const productAssets = assetManifest.filter((asset) => asset.type === "product");
-    const editorialAssets = assetManifest.filter((asset) => asset.type === "editorial");
-
-    expect(productAssets).toHaveLength(27);
-    expect(editorialAssets).toHaveLength(8);
-
-    for (const product of products) {
-      const asset = productAssets.find((item) => item.depictedProductId === product.id);
-      expect(asset).toMatchObject({
-        id: product.image.assetId,
-        path: product.image.path,
-        depictedCollectionId: product.collectionId,
-        depictedJournalId: null,
-        depictedSkuId: product.image.picturedSkuId,
-      });
-    }
-
-    for (const collection of estateCollections) {
-      expect(editorialAssets).toContainEqual(
-        expect.objectContaining({
-          path: collection.image,
-          depictedProductId: null,
-          depictedCollectionId: collection.id,
-          depictedJournalId: null,
-          depictedSkuId: null,
-        }),
-      );
-    }
-
-    for (const entry of estateJournalEntries) {
-      expect(editorialAssets).toContainEqual(
-        expect.objectContaining({
-          path: entry.image,
-          depictedProductId: null,
-          depictedCollectionId: entry.collectionId,
-          depictedJournalId: entry.id,
-          depictedSkuId: null,
-        }),
-      );
-    }
-  });
-
-  it("matches every local WebP, its true dimensions, and its exact byte size", () => {
-    const localPaths = ["products", "editorial"].flatMap((directory) =>
-      readdirSync(resolve(WORKSPACE_ROOT, "public", "images", directory))
-        .filter((name) => name.endsWith(".webp"))
-        .map((name) => `/images/${directory}/${name}`),
-    );
-
-    expect([...localPaths].sort()).toEqual(
-      [...assetManifest.map((asset) => asset.path)].sort(),
-    );
-
-    for (const asset of assetManifest) {
-      const filePath = resolve(WORKSPACE_ROOT, "public", asset.path.slice(1));
-      expect(existsSync(filePath), asset.path).toBe(true);
-      expect(statSync(filePath).isFile(), asset.path).toBe(true);
-      expect(statSync(filePath).size, asset.path).toBe(asset.fileSizeBytes);
-
-      const dimensions = readWebpDimensions(filePath);
-      expect(dimensions.width, asset.path).toBe(asset.originalWidth);
-      expect(dimensions.height, asset.path).toBe(asset.originalHeight);
-    }
-  });
-
-  it("keeps optimized file sizes within the launch ceilings", () => {
-    for (const asset of assetManifest) {
-      const ceiling = asset.type === "product" ? 350_000 : 500_000;
-      expect(asset.fileSizeBytes, asset.path).toBeLessThanOrEqual(ceiling);
-
-      if (asset.type === "product") {
-        expect(
-          { width: asset.originalWidth, height: asset.originalHeight },
-          asset.path,
-        ).toEqual({ width: 1_600, height: 2_000 });
-      } else {
-        expect(Math.max(asset.originalWidth, asset.originalHeight), asset.path).toBe(2_400);
+      for (const variantPath of Object.values(asset.variants)) {
+        expect(variantPath).toMatch(/^\/images\/[a-z0-9/-]+\.(?:webp|avif)$/);
+        const filePath = resolve(workspaceRoot, "public", variantPath.slice(1));
+        expect(existsSync(filePath), variantPath).toBe(true);
+        expect(statSync(filePath).isFile(), variantPath).toBe(true);
+        expect(statSync(filePath).size, variantPath).toBeGreaterThan(0);
       }
+
+      const webpBytes = readFileSync(
+        resolve(workspaceRoot, "public", asset.variants.webp.slice(1)),
+      );
+      expect(webpBytes.toString("ascii", 0, 4)).toBe("RIFF");
+      expect(webpBytes.toString("ascii", 8, 12)).toBe("WEBP");
+      const avifBytes = readFileSync(
+        resolve(workspaceRoot, "public", asset.variants.avif.slice(1)),
+      );
+      expect(avifBytes.toString("ascii", 4, 12)).toMatch(/^ftyp(?:avif|avis)$/);
+    }
+
+    const webpHashes = assetManifest.map((asset) =>
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(workspaceRoot, "public", asset.variants.webp.slice(1)),
+          ),
+        )
+        .digest("hex"),
+    );
+    const avifHashes = assetManifest.map((asset) =>
+      createHash("sha256")
+        .update(
+          readFileSync(
+            resolve(workspaceRoot, "public", asset.variants.avif.slice(1)),
+          ),
+        )
+        .digest("hex"),
+    );
+    expect(new Set(webpHashes)).toHaveLength(150);
+    expect(new Set(avifHashes)).toHaveLength(150);
+  });
+
+  it("documents optional ignored private sources without requiring them in a clone", () => {
+    expect(privateAnchorManifest).toHaveLength(8);
+    expect(new Set(privateAnchorManifest.map(({ id }) => id))).toHaveLength(8);
+    for (const anchor of privateAnchorManifest) {
+      expect(anchor.visibility).toBe("private");
+      expect(anchor.ignoredLocalPath).toMatch(/^\.private\/visual-anchors\//);
+      expect(anchor.publicServingAllowed).toBe(false);
+      expect(anchor.finalApproval).toBe(false);
+      expect(anchor.status).toBe("generated-internal-sandbox-source");
+      expect(existsSync(resolve(workspaceRoot, "public", anchor.ignoredLocalPath))).toBe(
+        false,
+      );
+    }
+
+    const validAnchorIds = new Set(
+      privateAnchorManifest.map((anchor) => anchor.id),
+    );
+    for (const asset of assetManifest.filter((entry) =>
+      entry.role.endsWith("lifestyle"),
+    )) {
+      expect(Array.isArray(asset.personReferenceIds)).toBe(true);
+      expect(new Set(asset.personReferenceIds).size).toBe(
+        asset.personReferenceIds.length,
+      );
+      expect(asset.containsPeople).toBe(asset.personReferenceIds.length > 0);
+      for (const anchorId of asset.personReferenceIds) {
+        expect(validAnchorIds.has(anchorId), `${asset.id}: ${anchorId}`).toBe(
+          true,
+        );
+      }
+    }
+  });
+
+  it("references every lifestyle and responsive category asset from reachable UI", () => {
+    expect(lookbookAssets).toHaveLength(36);
+    expect(new Set(lookbookAssets.map((asset) => asset.id))).toHaveLength(36);
+    expect(
+      lookbookAssets.filter((asset) => asset.role === "estate-lifestyle"),
+    ).toHaveLength(24);
+    expect(
+      lookbookAssets.filter((asset) => asset.role === "tennis-lifestyle"),
+    ).toHaveLength(12);
+
+    const categoryReferences = Object.values(categoryHeroAssets).flatMap(
+      ({ desktop, mobile }) => [desktop, mobile],
+    );
+    expect(categoryReferences).toHaveLength(10);
+    expect(new Set(categoryReferences.map((asset) => asset.id))).toHaveLength(10);
+    expect(categoryReferences.every((asset) => asset.role === "category")).toBe(true);
+
+    for (const editorialImage of [
+      ...estateCollections.map((entry) => entry.image),
+      ...estateJournalEntries.map((entry) => entry.image),
+    ]) {
+      expect(
+        getAssetManifestEntryByPath(editorialImage),
+        `unmanifested editorial image ${editorialImage}`,
+      ).toBeDefined();
     }
   });
 });

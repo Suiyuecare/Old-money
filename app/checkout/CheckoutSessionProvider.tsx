@@ -25,6 +25,7 @@ export type PreviewCheckoutErrors = Partial<
 >;
 
 export interface CompletionSnapshot {
+  readonly demoOrderPublicId: string;
   readonly itemCount: number;
   readonly subtotalTwd: number;
   readonly shippingTwd: number;
@@ -53,7 +54,7 @@ export const SAFE_PREVIEW_DETAILS: PreviewCheckoutDetails = Object.freeze({
   email: "preview@lignee.invalid",
   postalCode: "00000",
   region: "preview-main-island",
-  address: "虛構展示地址・莊園路 1 號",
+  address: "Sandbox 測試地址・莊園路 1 號",
 });
 
 const createInitialState = (): CheckoutSessionState => ({
@@ -69,19 +70,19 @@ export function validatePreviewDetails(
   const errors: PreviewCheckoutErrors = {};
 
   if (!details.recipient.trim() || details.recipient.trim().length > 60) {
-    errors.recipient = "請保留 1–60 字的虛構收件稱呼。";
+    errors.recipient = "請保留 1–60 字的 Sandbox 收件稱呼。";
   }
   if (!/^[^\s@]+@[^\s@]+\.invalid$/i.test(details.email.trim())) {
-    errors.email = "預覽模式只接受以 .invalid 結尾的虛構信箱。";
+    errors.email = "Sandbox 只接受以 .invalid 結尾的測試信箱。";
   }
   if (details.postalCode !== "00000") {
-    errors.postalCode = "預覽模式請使用虛構郵遞區號 00000。";
+    errors.postalCode = "Sandbox 請使用測試郵遞區號 00000。";
   }
-  if (!details.region.startsWith("preview-")) {
-    errors.region = "請選擇預覽用配送區域。";
+  if (details.region !== "preview-main-island") {
+    errors.region = "V1 只接受台灣本島預覽配送區域。";
   }
-  if (!details.address.includes("虛構") || details.address.trim().length > 100) {
-    errors.address = "地址必須明確包含「虛構」，且不超過 100 字。";
+  if (!details.address.includes("Sandbox") || details.address.trim().length > 100) {
+    errors.address = "地址必須明確包含「Sandbox」，且不超過 100 字。";
   }
 
   return errors;

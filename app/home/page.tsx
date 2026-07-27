@@ -14,6 +14,7 @@ export default function HomeCollectionPage() {
       title="居家生活"
       description="香氣、織物與餐桌器物讓屋內重新聚攏。為日常使用而準備，也願意陪伴一次次款待。"
       products={getProductsByCategory("home")}
+      heroCategory="home"
     />
   );
 }

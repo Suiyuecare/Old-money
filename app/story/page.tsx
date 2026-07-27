@@ -7,7 +7,7 @@ import styles from "@/app/editorial-pages.module.css";
 export const metadata: Metadata = {
   title: "品牌故事",
   description:
-    "走進 The Lignée Estate：一座為當代生活創作的虛構英倫莊園，以及 LIGNÉE 對時間、使用與傳承的想像。",
+    "走進 Alderwick House：LIGNÉE 的品牌宅邸與生活篇章，以及對時間、使用與傳承的選擇。",
 };
 
 export default function StoryPage() {
@@ -60,8 +60,8 @@ export default function StoryPage() {
         </div>
       </section>
 
-      <section className="shell section--tight" aria-label="虛構世界觀說明">
-        <p className={styles.notice}>{brandStory.fictionNotice}</p>
+      <section className="shell section--tight" aria-label="品牌敘事與商品事實說明">
+        <p className={styles.notice}>{brandStory.provenanceNotice}</p>
       </section>
 
       <section className="shell section">
@@ -77,7 +77,7 @@ export default function StoryPage() {
           <div className={styles.featureCopy}>
             <span className="eyebrow">The Estate, in Chapters</span>
             <h2>從一天的節奏開始</h2>
-            <p>田野、溫室、藏書室與長桌，構成 LIGNÉE 首發系列的四個生活章節。</p>
+            <p>田野、溫室、藏書室、私人草地球場與長桌，構成 LIGNÉE 首發系列的五個生活章節。</p>
             <Link className="text-link" href="/collections">
               閱讀莊園篇章
             </Link>

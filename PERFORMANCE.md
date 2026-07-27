@@ -1,8 +1,18 @@
-# LIGNÉE 效能驗收報告
+# LIGNÉE 效能歷史基線
 
-## 結論
+> 狀態：**歷史資料，不能作為目前 build 的上市證據。**
+>
+> 下列數字屬於 2026-07-23 的 Build ID
+> `t5ZS9pdcZRx_7sVV9l4Ux`。2026-07-24 已新增 50 件完整商品、150 組公開
+> 視覺、明體子集、Lookbook、網球系列與商務邊界；目前版本必須重新完成
+> Lighthouse、互動延遲與 bundle 量測後，才能更新為 current gate。
 
-2026-07-23 以 dependency-hardened 最終 production build（Build ID `t5ZS9pdcZRx_7sVV9l4Ux`）完成驗收。三個代表路由的 Lighthouse Performance 與 Accessibility median 均為 100；首頁 LCP、CLS、TBT 與三項互動延遲均通過 PLAN.md 的門檻。三頁的非 Next runtime first-load JavaScript gzip 皆遠低於 180 KB。
+## 2026-07-23 baseline 結論
+
+2026-07-23 曾以當時的 dependency-hardened production build（Build ID
+`t5ZS9pdcZRx_7sVV9l4Ux`）完成基線量測。三個代表路由的 Lighthouse
+Performance 與 Accessibility median 均為 100；首頁 LCP、CLS、TBT 與三項
+互動延遲均通過當時門檻。這些結果不外推到目前 build。
 
 | 正式 gate | 最終結果 | 目標 | 判定 |
 | --- | ---: | ---: | :---: |

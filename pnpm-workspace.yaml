@@ -1,6 +1,12 @@
 packages:
   - "."
 
+allowBuilds:
+  esbuild: false
+
+minimumReleaseAgeExclude:
+  - react-email@6.9.1
+
 # Next 16.2.x still pins pre-advisory transitive versions. These exact
 # replacements match the versions already adopted by the Next 16.3 line.
 overrides:

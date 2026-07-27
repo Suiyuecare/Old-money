@@ -1,0 +1,108 @@
+import { z } from "zod";
+
+export type CommerceMode = "demo" | "production-disabled" | "live";
+
+const booleanText = z.enum(["true", "false"]).transform((value) => value === "true");
+
+const optionalBoolean = (value: string | undefined): boolean | undefined =>
+  value === undefined ? undefined : booleanText.parse(value);
+
+export interface RuntimeControls {
+  readonly revision: number;
+  readonly mediaSafetyRevision: number;
+  readonly commerceLive: boolean;
+  readonly checkoutEnabled: boolean;
+  readonly productionCanaryEnabled: boolean;
+  readonly ecpayApplePayEnabled: boolean;
+  readonly searchIndexEnabled: boolean;
+  readonly catalogEmergencyNoCache: boolean;
+  readonly mediaEmergencyNoCache: boolean;
+}
+
+export interface CommerceEnvironment {
+  readonly mode: CommerceMode;
+  readonly commerceCapable: boolean;
+  readonly canonicalOrigin: "https://estatelignee.com";
+  readonly canonicalHost: "estatelignee.com";
+  readonly controls: RuntimeControls;
+  readonly controlsSource: "deterministic-demo" | "fail-closed-env";
+  readonly providerCredentialsConfigured: boolean;
+  readonly databaseConfigured: boolean;
+  readonly incidentChannelConfigured: boolean;
+  readonly deadmanConfigured: boolean;
+}
+
+const failClosedControls = Object.freeze({
+  revision: 0,
+  mediaSafetyRevision: 0,
+  commerceLive: false,
+  checkoutEnabled: false,
+  productionCanaryEnabled: false,
+  ecpayApplePayEnabled: false,
+  searchIndexEnabled: false,
+  catalogEmergencyNoCache: true,
+  mediaEmergencyNoCache: true,
+} satisfies RuntimeControls);
+
+export function getCommerceEnvironment(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): CommerceEnvironment {
+  const requestedMode = env.LIGNEE_MODE;
+  const mode: CommerceMode =
+    requestedMode === "demo" ||
+    requestedMode === "production-disabled" ||
+    requestedMode === "live"
+      ? requestedMode
+      : env.NODE_ENV === "production"
+        ? "production-disabled"
+        : "demo";
+
+  const commerceCapable = optionalBoolean(env.COMMERCE_CAPABLE) ?? false;
+  const providerCredentialsConfigured = Boolean(
+    env.ECPAY_MERCHANT_ID && env.ECPAY_HASH_KEY && env.ECPAY_HASH_IV,
+  );
+  const databaseConfigured = Boolean(
+    env.LIGNEE_DATABASE_URL && env.LIGNEE_DATABASE_CA_CERT,
+  );
+
+  // Shared runtime controls must ultimately come from DB + Edge Config with a
+  // matching revision. Environment values are intentionally not accepted as a
+  // way to enable commerce. Until that read path is configured, production is
+  // strictly fail closed.
+  const controls: RuntimeControls =
+    mode === "demo"
+      ? {
+          ...failClosedControls,
+          revision: 1,
+          mediaSafetyRevision: 1,
+          catalogEmergencyNoCache: false,
+          mediaEmergencyNoCache: false,
+        }
+      : failClosedControls;
+
+  return Object.freeze({
+    mode,
+    commerceCapable,
+    canonicalOrigin: "https://estatelignee.com",
+    canonicalHost: "estatelignee.com",
+    controls,
+    controlsSource: mode === "demo" ? "deterministic-demo" : "fail-closed-env",
+    providerCredentialsConfigured,
+    databaseConfigured,
+    incidentChannelConfigured: Boolean(env.INCIDENT_WEBHOOK_URL),
+    deadmanConfigured: Boolean(
+      env.DEADMAN_HEARTBEAT_URL_RESERVATION &&
+        env.DEADMAN_HEARTBEAT_URL_REFUND_PRIORITY &&
+        env.DEADMAN_HEARTBEAT_URL_RECONCILIATION,
+    ),
+  });
+}
+
+export const isCanonicalCommerceRequest = (
+  requestUrl: URL,
+  hostHeader: string | null,
+): boolean =>
+  requestUrl.protocol === "https:" &&
+  requestUrl.hostname === "estatelignee.com" &&
+  hostHeader?.split(":")[0]?.toLowerCase() === "estatelignee.com";
+

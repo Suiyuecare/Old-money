@@ -16,6 +16,7 @@
 /test-results/
 /artifacts/visual-qa/
 /artifacts/performance/
+/artifacts/asset-review/
 
 # next.js
 /.next/
@@ -34,6 +35,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -45,3 +47,8 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# Private visual identity anchors, generated source masters, and retired public
+# prototype assets must never be served or committed.
+/.private/
+/supabase/.temp/

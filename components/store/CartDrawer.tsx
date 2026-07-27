@@ -161,7 +161,7 @@ export function CartDrawer() {
                   <div>
                     <span>
                       {amountUntilFreeShippingTwd === 0
-                        ? "已享台灣地區免運"
+                        ? "已享台灣本島免運"
                         : `再選購 ${formatTwd(amountUntilFreeShippingTwd)} 即享免運`}
                     </span>
                     <span aria-hidden="true">

@@ -19,7 +19,7 @@ export function SiteFooter() {
         <div className="site-footer__brand">
           <BrandMark />
           <p>Made to Be Inherited.</p>
-          <p className="site-footer__fine">一個受當代英倫鄉間生活啟發的虛構品牌世界。</p>
+          <p className="site-footer__fine">當代英倫宅邸與私人草地球場生活，由 LIGNÉE 自有品牌呈現。</p>
         </div>
         {footerNavigationGroups.map((group) => (
           <nav key={group.title} aria-label={group.title}>

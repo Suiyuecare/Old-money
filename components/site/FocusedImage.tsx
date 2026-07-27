@@ -7,7 +7,7 @@ type FocusedImageProps = Omit<ImageProps, "src"> & {
 };
 
 /**
- * Renders an approved local concept asset using its audited safe focal point.
+ * Renders a governed local Sandbox asset using its audited safe focal point.
  * Explicit caller styles still win for properties other than object-position.
  */
 export function FocusedImage({ src, style, alt, ...props }: FocusedImageProps) {

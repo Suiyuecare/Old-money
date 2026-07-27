@@ -7,7 +7,7 @@ import styles from "@/app/editorial-pages.module.css";
 export const metadata: Metadata = {
   title: "Estate Journal",
   description:
-    "LIGNÉE 關於季節衣著、書寫、款待與當代莊園生活的四篇安靜筆記。",
+    `LIGNÉE 關於季節衣著、書寫、球場與款待的 ${estateJournalEntries.length} 篇安靜筆記。`,
 };
 
 export default function JournalPage() {

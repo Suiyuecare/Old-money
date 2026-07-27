@@ -239,8 +239,16 @@
 
 .journalGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: clamp(3.5rem, 7vw, 7rem) clamp(1.25rem, 3vw, 3rem);
+}
+
+.journalCard {
+  grid-column: span 2;
+}
+
+.journalCard:nth-child(n + 4) {
+  grid-column: span 3;
 }
 
 .journalCardImage {
@@ -724,6 +732,13 @@
     grid-template-columns: 1fr;
   }
 
+  .journalGrid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+
+  .journalCard { grid-column: span 2; }
+  .journalCard:nth-child(n + 4) { grid-column: span 3; }
+
   .principle,
   .serviceCard,
   .principle:first-child,
@@ -767,6 +782,11 @@
   .journalGrid,
   .formRow {
     grid-template-columns: 1fr;
+  }
+
+  .journalCard,
+  .journalCard:nth-child(n + 4) {
+    grid-column: span 1;
   }
 
   .journalCardImage {

@@ -119,7 +119,7 @@ test("desktop facets and sort survive rapid search followed by more facets", asy
   const search = page.getByRole("searchbox", { name: "搜尋 LIGNÉE 選品" }).first();
   const apparel = page.getByRole("checkbox", { name: "服飾" }).first();
   const firstLight = page
-    .getByRole("checkbox", { name: "晨光落在田野" })
+    .getByRole("checkbox", { name: "田野初光" })
     .first();
 
   await filters.getByText("男士", { exact: true }).click();
@@ -128,7 +128,7 @@ test("desktop facets and sort survive rapid search followed by more facets", asy
   await search.pressSequentially("polo", { delay: 25 });
   await filters.getByText("服飾", { exact: true }).click();
   await expect(apparel).toBeChecked();
-  await filters.getByText("晨光落在田野", { exact: true }).click();
+  await filters.getByText("田野初光", { exact: true }).click();
   await expect(firstLight).toBeChecked();
 
   await expect.poll(() => new URL(page.url()).searchParams.toString()).toBe(

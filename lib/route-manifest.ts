@@ -40,14 +40,16 @@ const page = (
 const staticRoutes: readonly RouteManifestEntry[] = [
   page("home", "/", "首頁"),
   page("shop", "/shop", "全部選品", "catalog"),
-  page("men", "/men", "男裝", "catalog"),
-  page("women", "/women", "女裝", "catalog"),
+  page("men", "/men", "男士", "catalog"),
+  page("women", "/women", "女士", "catalog"),
   page("accessories", "/accessories", "配件", "catalog"),
   page("home-living", "/home", "居家生活", "catalog"),
   page("stationery", "/stationery", "文具", "catalog"),
+  page("tennis", "/tennis", "網球運動", "catalog"),
   page("search", "/search", "搜尋選品", "catalog"),
   page("collections", "/collections", "莊園篇章"),
   page("journal", "/journal", "Estate Journal"),
+  page("lookbook", "/lookbook", "Estate Lookbook"),
   page("wishlist", "/wishlist", "收藏清單", "guarded", "預設顯示空收藏"),
   page("cart", "/cart", "購物袋", "guarded", "預設顯示空購物袋"),
   page("checkout", "/checkout", "模擬結帳", "guarded", "空購物袋時安全阻擋"),
@@ -61,6 +63,17 @@ const staticRoutes: readonly RouteManifestEntry[] = [
   page("story", "/story", "品牌故事"),
   page("private-appointment", "/private-appointment", "私人選品預約"),
   page("shipping-returns", "/shipping-returns", "配送與退換貨"),
+  page("payment", "/payment", "付款與發票"),
+  page("care-repair", "/care-repair", "保養與修繕"),
+  page("orders", "/orders", "訂單查詢", "guarded", "預設顯示驗證入口"),
+  page(
+    "orders-access",
+    "/orders/access",
+    "訂單安全連結",
+    "guarded",
+    "沒有 fragment token 時顯示 unavailable",
+  ),
+  page("admin", "/admin", "營運管理", "guarded", "預設拒絕未驗證存取"),
   page("privacy", "/privacy", "隱私條款"),
   page("terms", "/terms", "使用條款"),
 ];
@@ -108,7 +121,7 @@ const notFoundRoute: RouteManifestEntry = {
 };
 
 /**
- * Canonical list of every user-facing route reachable in the prototype.
+ * Canonical list of every user-facing route reachable in the local storefront.
  * Dynamic entries are derived from the same catalog/editorial modules as the app,
  * so a new product or chapter cannot silently fall out of route verification.
  */

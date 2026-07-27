@@ -1,19 +1,8 @@
 # LIGNÉE — Made to Be Inherited.
 
-A high-fidelity, non-transactional commerce prototype for a fictional
-contemporary British estate lifestyle brand. The customer-facing experience is
-written primarily in Traditional Chinese, with English used for editorial mood.
+LIGNÉE is a Taiwan-first DTC own-brand storefront shaped around Alderwick House, contemporary British-estate life, and a private grass court. Estate No. 01 contains exactly 50 Sandbox products in Traditional Chinese and TWD.
 
-## Prototype boundary
-
-- No real payment, order, inventory, account, email, appointment, or analytics service
-- Cart and wishlist persist locally in the visitor's browser
-- Checkout and demonstration-form details remain in React memory only
-- All contact examples use the reserved `.invalid` top-level domain
-- Every deployment remains `noindex` and displays the prototype banner
-- Product facts, sourcing, materials, and imagery are concepts pending real-world verification
-
-See [SECURITY.md](./SECURITY.md) for the complete privacy and security boundary.
+The repository is a production-shaped, production-disabled foundation. Local development uses bounded process-local repositories and deterministic providers. It does not contain a live enable path. Production checkout, callbacks, invoices, logistics, admin mutation, indexing, canary admission, and provider calls fail closed.
 
 ## Local development
 
@@ -24,62 +13,57 @@ pnpm install
 pnpm dev
 ```
 
-Open `http://localhost:3000`.
+No live credential is required. Do not add real customer, provider, or platform secrets to local files.
 
 ## Verification
 
 ```bash
-pnpm validate
-pnpm audit --prod
-pnpm build
-pnpm start
-
-# In a second terminal, against the production server on 127.0.0.1:3000:
+pnpm check:launch
+pnpm lint
+pnpm typecheck
+pnpm test
 pnpm test:e2e
 pnpm test:visual
+pnpm audit --prod
+pnpm build
 ```
 
-`pnpm build` runs the unit/content suite first, then creates the optimized
-Next.js build. Generated commerce and editorial assets are governed by
-`content/asset-manifest.ts`. The visual sweep captures all 55 routes at three
-locked viewports into the ignored `artifacts/visual-qa/` directory; see
-`VISUAL-QA.md` for the approval record. Lighthouse, interaction-latency, and
-first-load JavaScript results are documented in `PERFORMANCE.md`.
+The static launch gate verifies:
 
-The final production acceptance run completed 68 unit/content tests and 34
-Playwright cases (28 passed, 6 intentionally skipped by viewport/project), with
-no failures. The locked production dependency graph also completed
-`pnpm audit --prod` with no known vulnerabilities.
+- 50 products with category split `16/10/9/5/10`
+- chapter split `13/9/11/7/10`
+- 150 byte-unique governed WebP payloads with 150 byte-unique AVIF variants; private local sources are checked separately
+- prohibited front-end copy
+- API-only Supabase schema exposure and RLS/security SQL markers
+- secret-like values and the prohibited legacy project identifier
 
 ## Architecture
 
-- Next.js App Router and React Server Components by default
-- TypeScript strict mode
-- CSS Modules plus global design tokens
-- Local typed catalog: 27 products and 155 explicit SKUs
-- Four estate collections and four journal entries
-- Client islands only for search/filtering, cart, wishlist, forms, and mock checkout
-- Request-scoped nonce CSP plus restrictive security and indexing headers
+- Next.js 16 App Router, Server Components by default, small client islands
+- local Ming font and no build-time font network request
+- strict TypeScript, Zod request schemas, CSS Modules and design tokens
+- server-authoritative catalog quote and digest, explicit stale-price acknowledgement, immutable tax/total snapshots, inventory ledger, bounded idempotency and state machines
+- narrow repository/provider interfaces with bounded process-local demo adapters
+- ECPay signature/canonicalization primitives without live provider calls
+- unexecuted Supabase migration source defining private schemas, `api`-only exposure, forced RLS, negative SQL tests, and append-only financial/audit shapes
+- per-request nonce CSP, same-origin BFF boundaries, noindex, no analytics on sensitive routes
 
-## Vercel production
+The durable Supabase repositories/order transaction/OTP, DB+Edge control
+reader, live media gateway, ECPay inbox/query/refund flow, invoice/logistics
+adapters, workers/reconciliation, canary, live SEO/index controls, and real
+private-asset custody are not implemented. See [implementation status](./docs/implementation-status.md), [launch gates](./docs/launch-gates.md), [environment matrix](./docs/environment-matrix.md), [security](./SECURITY.md), and [runbooks](./docs/runbooks/).
 
-The approved Vercel project `old-money`
-(`prj_DKYM3lvhibSXp1khm0Xv6m1EOv7g`) is linked to the GitHub `main` branch and
-is live at [old-money-topaz.vercel.app](https://old-money-topaz.vercel.app).
-Production sets `NEXT_PUBLIC_SITE_URL` to that stable alias, and future pushes
-to `main` trigger a new production deployment through the Vercel Git
-integration.
+## Supabase safety
 
-The project can be relinked and inspected with the pinned CLI:
+The repository is not linked to any remote Supabase project. `supabase/config.toml` is local-only configuration for the future `lignee-commerce` project shape. Never run link, migration, reset, or SQL commands against a remote project from this repository without a separate reviewed release process. Local database proof requires Docker.
 
-```bash
-pnpm dlx vercel@56.5.0 link --yes \
-  --project prj_DKYM3lvhibSXp1khm0Xv6m1EOv7g \
-  --scope entrepreneur-9585s-projects
-pnpm dlx vercel@56.5.0 inspect old-money-topaz.vercel.app \
-  --scope entrepreneur-9585s-projects
-```
+## Visual assets
 
-The production site remains visibly marked as a non-transactional prototype,
-uses `noindex`, and contains no commerce credentials. Do not connect payment or
-PII services without completing the production review in `SECURITY.md`.
+`content/asset-inventory.generated.json` is the governed public manifest. The
+36 lifestyle images are Sandbox derivatives of eight distinct, locally
+generated identity sources; the remaining assets are deterministic derivatives
+of local sources. None is final product photography, physical-product evidence
+or rights approval. The eight source anchors live under ignored
+`.private/visual-anchors/`, are never served, and are absent from a clean clone.
+Run `pnpm check:assets:private` only where those private local sources are
+present; the normal committed public-asset gate does not require them.

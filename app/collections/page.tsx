@@ -7,7 +7,7 @@ import styles from "@/app/editorial-pages.module.css";
 export const metadata: Metadata = {
   title: "莊園篇章",
   description:
-    "沿著田野初光、午後溫室、雨後藏書室與長桌晚宴，閱讀 The Lignée Estate 的四個當代生活篇章。",
+    `閱讀 The Lignée Estate 的 ${estateCollections.length} 個當代生活篇章。`,
 };
 
 export default function CollectionsPage() {
@@ -15,12 +15,12 @@ export default function CollectionsPage() {
     <>
       <header className={`${styles.intro} shell`}>
         <div>
-          <span className="eyebrow">One Estate, Four Moments</span>
+          <span className="eyebrow">One Estate, Five Moments</span>
           <h1>莊園的一天</h1>
         </div>
         <div className={styles.introCopy}>
           <p>
-            從草地仍帶露水的清晨，到燭光緩慢落下的晚餐。四個篇章不是對舊時代的重演，而是為當代生活保留的四種節奏。
+            從草地仍帶露水的清晨，到球場午後與燭光晚餐。{estateCollections.length} 個篇章為當代生活保留不同節奏。
           </p>
         </div>
       </header>

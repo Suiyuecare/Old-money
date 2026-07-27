@@ -14,6 +14,7 @@ export default function StationeryPage() {
       title="文具"
       description="讓紙張、書寫與收納成為安靜的儀式。不是為了填滿每一頁，而是替值得記住的事保留位置。"
       products={getProductsByCategory("stationery")}
+      heroCategory="stationery"
     />
   );
 }

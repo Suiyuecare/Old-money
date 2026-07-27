@@ -15,7 +15,7 @@ async function seedCart(
   }, lines);
 }
 
-test.describe("prototype commerce story", () => {
+test.describe("Sandbox commerce story", () => {
   test.beforeEach(async ({ context }) => {
     await context.clearCookies();
   });
@@ -28,8 +28,10 @@ test.describe("prototype commerce story", () => {
       page.getByRole("heading", { name: /Made to\s*Be Inherited\./i }),
     ).toBeVisible();
 
-    await page.getByRole("link", { name: "Field House Polo", exact: true }).click();
-    await expect(page).toHaveURL(/\/product\/field-house-polo$/);
+    await Promise.all([
+      page.waitForURL(/\/product\/field-house-polo$/, { timeout: 30_000 }),
+      page.getByRole("link", { name: "Field House Polo", exact: true }).click(),
+    ]);
     await expect(page.getByRole("heading", { name: "Field House Polo" })).toBeVisible();
 
     const addButton = page.getByRole("button", { name: "加入購物車" });
@@ -46,9 +48,9 @@ test.describe("prototype commerce story", () => {
     await addButton.click();
     await expect(missingOptions).toBeFocused();
 
-    await page.getByRole("radio", { name: "M", exact: true }).check();
-    await page.getByRole("radio", { name: "深橄欖", exact: true }).check();
-    await expect(page.getByText(/已選定：M · 深橄欖/)).toBeVisible();
+    await page.getByRole("radio", { name: /M（Sandbox）/ }).check();
+    await page.getByRole("radio", { name: "莊園橄欖", exact: true }).check();
+    await expect(page.getByText(/已選定：M（Sandbox） · 莊園橄欖/)).toBeVisible();
     await addButton.click();
 
     const drawer = page.getByRole("dialog", { name: "購物袋" });
@@ -64,6 +66,7 @@ test.describe("prototype commerce story", () => {
     await page.getByRole("link", { name: "前往模擬結帳" }).click();
 
     await expect(page.getByRole("heading", { name: "配送資料示意" })).toBeFocused();
+    await expect(page.getByText("伺服器價格已確認。")).toBeVisible();
     await page.getByRole("button", { name: "繼續付款規劃" }).click();
     await expect(page.getByRole("heading", { name: "付款方式規劃" })).toBeFocused();
     await page.getByRole("radio", { name: /信用卡（正式版規劃）/ }).check();
@@ -73,7 +76,8 @@ test.describe("prototype commerce story", () => {
 
     await expect(page).toHaveURL(/\/checkout\/complete$/);
     await expect(page.getByRole("heading", { name: "模擬結帳已完成" })).toBeVisible();
-    await expect(page.getByText(/沒有傳送個資、沒有扣款/)).toBeVisible();
+    await expect(page.getByText(/沒有傳送表單個資、沒有扣款/)).toBeVisible();
+    await expect(page.getByText(/^DEMO-\d{6}$/)).toBeVisible();
     await expect
       .poll(() =>
         page.evaluate(() => window.localStorage.getItem("lignee:cart")),
@@ -92,7 +96,7 @@ test.describe("prototype commerce story", () => {
           version: 1,
           lines: [
             { skuId: "not-a-real-sku", quantity: 1 },
-            { skuId: "field-house-polo-m-deep-olive", quantity: 99 },
+            { skuId: "field-house-polo-s-estate-olive", quantity: 99 },
           ],
         }),
       );
@@ -132,8 +136,8 @@ test.describe("prototype commerce story", () => {
     page,
   }) => {
     await seedCart(page, [
-      { skuId: "field-house-polo-m-deep-olive", quantity: 1 },
-      { skuId: "correspondence-pen-satin-black", quantity: 1 },
+      { skuId: "field-house-polo-s-estate-olive", quantity: 1 },
+      { skuId: "correspondence-pen-launch-sample-estate-dark", quantity: 1 },
     ]);
     await page.goto("/cart");
 
@@ -144,15 +148,15 @@ test.describe("prototype commerce story", () => {
     await expect(belowThreshold.getByText("NT$250", { exact: true })).toBeVisible();
 
     await seedCart(page, [
-      { skuId: "long-table-tie-claret", quantity: 1 },
-      { skuId: "evening-sheer-tights-s-m-smoke", quantity: 1 },
+      { skuId: "south-lawn-sunglasses-launch-sample-estate-dark", quantity: 1 },
+      { skuId: "breakfast-room-mug-launch-sample-estate-dark", quantity: 1 },
     ]);
     await page.goto("/cart");
 
     const atThreshold = page.getByRole("complementary", {
       name: "本次概念選品",
     });
-    await expect(atThreshold.getByText("已享台灣地區免運")).toBeVisible();
+    await expect(atThreshold.getByText("已享台灣本島免運")).toBeVisible();
     await expect(atThreshold.getByText("免運", { exact: true })).toBeVisible();
   });
 
@@ -163,8 +167,8 @@ test.describe("prototype commerce story", () => {
       otherPage.goto("/"),
     ]);
 
-    await page.getByRole("radio", { name: "M", exact: true }).check();
-    await page.getByRole("radio", { name: "深橄欖", exact: true }).check();
+    await page.getByRole("radio", { name: /M（Sandbox）/ }).check();
+    await page.getByRole("radio", { name: "莊園橄欖", exact: true }).check();
     await page.getByRole("button", { name: "加入購物車" }).click();
 
     const syncedBag = otherPage.getByRole("button", {
@@ -182,9 +186,10 @@ test.describe("prototype commerce story", () => {
 
   test("the full guarded checkout can be completed with the keyboard", async ({ page }) => {
     await seedCart(page, [
-      { skuId: "field-house-polo-m-deep-olive", quantity: 1 },
+      { skuId: "field-house-polo-s-estate-olive", quantity: 1 },
     ]);
     await page.goto("/checkout");
+    await expect(page.getByText("伺服器價格已確認。")).toBeVisible();
 
     const detailsSubmit = page.getByRole("button", { name: "繼續付款規劃" });
     await detailsSubmit.focus();
@@ -203,5 +208,79 @@ test.describe("prototype commerce story", () => {
     await complete.focus();
     await page.keyboard.press("Enter");
     await expect(page.getByRole("heading", { name: "模擬結帳已完成" })).toBeVisible();
+  });
+
+  test("stale prices require explicit acknowledgement before successful resubmission", async ({
+    page,
+  }) => {
+    const submittedKeys: string[] = [];
+    await page.route("**/api/checkout/orders", async (route) => {
+      const body = route.request().postDataJSON() as { readonly idempotencyKey: string };
+      submittedKeys.push(body.idempotencyKey);
+      if (submittedKeys.length === 1) {
+        await route.abort("failed");
+        return;
+      }
+      await route.continue();
+    });
+    await page.goto("/robots.txt");
+    await page.evaluate(() => {
+      window.localStorage.setItem(
+        "lignee:cart",
+        JSON.stringify({
+          version: 1,
+          lines: [
+            {
+              skuId: "field-house-polo-s-estate-olive",
+              quantity: 2,
+              lastSeenPriceVersion: "stale-price-version",
+              lastSeenUnitPriceTwd: 1,
+            },
+          ],
+        }),
+      );
+    });
+    await page.goto("/checkout");
+    await expect(page.getByText("價格版本已有更新")).toBeVisible();
+    const checkoutSummary = page.getByRole("complementary", {
+      name: "2 件概念商品",
+    });
+    await expect(
+      checkoutSummary.getByRole("listitem").getByText("NT$15,600", {
+        exact: true,
+      }),
+    ).toBeVisible();
+
+    await page.getByRole("button", { name: "繼續付款規劃" }).click();
+    await page.getByRole("radio", { name: /信用卡（正式版規劃）/ }).check();
+    await page.getByRole("button", { name: "檢視概念摘要" }).click();
+
+    const complete = page.getByRole("button", { name: "完成模擬結帳" });
+    const acknowledgement = page.getByRole("checkbox", {
+      name: "我已確認目前價格",
+    });
+    await expect(acknowledgement).not.toBeChecked();
+    await expect(complete).toBeDisabled();
+    await acknowledgement.check();
+    await expect(complete).toBeEnabled();
+    await complete.click();
+    await expect(page.getByText(/Sandbox 訂單命令未完成/)).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByText("價格版本已有更新")).toBeVisible();
+    await page.getByRole("button", { name: "繼續付款規劃" }).click();
+    await page.getByRole("radio", { name: /信用卡（正式版規劃）/ }).check();
+    await page.getByRole("button", { name: "檢視概念摘要" }).click();
+    const refreshedAcknowledgement = page.getByRole("checkbox", {
+      name: "我已確認目前價格",
+    });
+    await expect(refreshedAcknowledgement).not.toBeChecked();
+    await refreshedAcknowledgement.check();
+    await page.getByRole("button", { name: "完成模擬結帳" }).click();
+
+    await expect(page.getByRole("heading", { name: "模擬結帳已完成" })).toBeVisible();
+    await expect(page.getByText(/^DEMO-\d{6}$/)).toBeVisible();
+    expect(submittedKeys).toHaveLength(2);
+    expect(submittedKeys[1]).toBe(submittedKeys[0]);
   });
 });

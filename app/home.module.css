@@ -161,21 +161,33 @@
   font-size: clamp(2.8rem, 5.5vw, 5.3rem);
 }
 
+.headingLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem 1.5rem;
+}
+
 .chapters {
   padding-top: var(--section-space);
 }
 
 .chapterGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .chapter {
   position: relative;
   display: grid;
+  grid-column: span 2;
   min-height: min(72vw, 780px);
   overflow: hidden;
   color: var(--white);
+}
+
+.chapter:nth-child(n + 4) {
+  grid-column: span 3;
 }
 
 .chapter img {
@@ -225,7 +237,7 @@
 
 .journalGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1.25rem;
 }
 
@@ -290,7 +302,12 @@
   .statementCopy { max-width: 38rem; }
   .stewardship { grid-template-columns: 1fr; }
   .stewardshipVisual { min-height: 80vw; }
-  .journalGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3rem 1rem; }
+  .chapterGrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .chapter { grid-column: span 2; }
+  .chapter:nth-child(n + 4) { grid-column: span 3; }
+  .journalGrid { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 3rem 1rem; }
+  .journal article { grid-column: span 2; }
+  .journal article:nth-child(n + 4) { grid-column: span 3; }
 }
 
 @media (max-width: 700px) {
@@ -299,9 +316,14 @@
   .heroShade { background: linear-gradient(180deg, rgba(18, 23, 19, 0.12), rgba(18, 23, 19, 0.82)); }
   .heroNote { display: none; }
   .sectionHeading { align-items: flex-start; flex-direction: column; }
+  .headingLinks { justify-content: flex-start; }
   .chapterGrid { grid-template-columns: 1fr; }
+  .chapter,
+  .chapter:nth-child(n + 4) { grid-column: span 1; }
   .chapter { min-height: 115vw; }
   .journalGrid { grid-template-columns: 1fr; }
+  .journal article,
+  .journal article:nth-child(n + 4) { grid-column: span 1; }
   .journalImage { aspect-ratio: 4 / 5; }
   .stewardshipCopy dl > div { grid-template-columns: 1fr; gap: 0.3rem; }
 }

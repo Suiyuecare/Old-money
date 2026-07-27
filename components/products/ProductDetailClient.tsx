@@ -134,7 +134,7 @@ export function ProductDetailClient({
               sizes="(max-width: 900px) 100vw, 58vw"
               className={styles.productImage}
             />
-            <span className={styles.imageStamp}>LIGNÉE · Concept 01</span>
+            <span className={styles.imageStamp}>LIGNÉE · Estate No. 01 · Sandbox</span>
           </div>
 
           {colorAxis ? (
@@ -164,9 +164,7 @@ export function ProductDetailClient({
 
           <aside className={styles.conceptNotice} aria-label="概念商品告知">
             <strong>Concept specification</strong>
-            <p>
-              本頁為品牌原型；材質、色澤、尺寸與產地皆為開發方向，尚非經驗證的銷售聲明，亦不會進行真實扣款。
-            </p>
+              <p>材質、色澤、尺寸、產地與草案價格尚未取得正式核准；本頁不會建立真實扣款。</p>
           </aside>
 
           <form className={styles.purchaseForm} noValidate onSubmit={handleAddToCart}>
@@ -290,7 +288,7 @@ export function ProductDetailClient({
           <div className={styles.serviceNote}>
             <div>
               <strong>Delivery concept</strong>
-              <span>原型配送規劃：台灣地區滿 NT$12,000 免運；未滿 NT$250。</span>
+              <span>原型配送規劃：台灣本島滿 NT$12,000 免運；未滿 NT$250。</span>
             </div>
             <div>
               <strong>Returns policy draft</strong>
@@ -300,10 +298,27 @@ export function ProductDetailClient({
         </div>
       </article>
 
+      <section className={styles.information} aria-label="商品細節影像">
+        <div className={styles.imageFrame}>
+          <Image
+            src={product.image.detailPath}
+            alt={`${product.subtitle}的 Sandbox 細節影像；正式商品攝影待核准`}
+            fill
+            sizes="(max-width: 900px) 100vw, 50vw"
+            className={styles.productImage}
+          />
+        </div>
+        <div className={styles.informationIntro}>
+          <span className="eyebrow">Sandbox visual record</span>
+          <h2>細節仍待實物核准</h2>
+          <p>此影像是開發階段的本地衍生素材，不代表最終商品結構、顏色、材質或製造品質。</p>
+        </div>
+      </section>
+
       <section className={styles.information} aria-labelledby="product-information-title">
         <div className={styles.informationIntro}>
           <span className="eyebrow">In quiet detail</span>
-          <h2 id="product-information-title">為長久使用而想像</h2>
+          <h2 id="product-information-title">為長久使用而設計</h2>
           <p>{product.description}</p>
         </div>
 

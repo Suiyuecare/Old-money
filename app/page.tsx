@@ -46,7 +46,11 @@ export default function HomePage() {
               <span className="eyebrow">The First Edit</span>
               <h2>值得反覆使用的日常</h2>
             </div>
-            <Link className="text-link" href="/shop">瀏覽全部 27 件</Link>
+            <div className={styles.headingLinks}>
+              <Link className="text-link" href="/men">男士</Link>
+              <Link className="text-link" href="/women">女士</Link>
+              <Link className="text-link" href="/shop">瀏覽全部 50 件</Link>
+            </div>
           </div>
           <ProductGrid products={products.slice(0, 6)} />
         </div>
@@ -65,7 +69,7 @@ export default function HomePage() {
           <span className="eyebrow">Material &amp; Stewardship</span>
           <h2 id="stewardship-title">讓使用，成為最後一道工序。</h2>
           <p>
-            我們先從觸感、比例與可被照料的方式想像每一件物品。原型中的材質皆是開發方向，待供應與打樣確認；真正的價值，必須經得起日常反覆使用。
+            我們先從觸感、比例與可被照料的方式設計每一件物品。Sandbox 中的材質皆是開發方向，待供應與打樣確認；真正的價值，必須經得起日常反覆使用。
           </p>
           <dl>
             <div>
@@ -88,10 +92,13 @@ export default function HomePage() {
       <section className={styles.chapters} aria-labelledby="chapters-title">
         <div className={`${styles.sectionHeading} shell`}>
           <div>
-            <span className="eyebrow">One Estate, Four Moments</span>
+            <span className="eyebrow">One Estate, Five Moments</span>
             <h2 id="chapters-title">莊園的一天</h2>
           </div>
-          <Link className="text-link" href="/collections">閱讀所有篇章</Link>
+          <div className={styles.headingLinks}>
+            <Link className="text-link" href="/collections">閱讀所有篇章</Link>
+            <Link className="text-link" href="/lookbook">瀏覽 Estate Lookbook</Link>
+          </div>
         </div>
         <div className={styles.chapterGrid}>
           {estateCollections.map((collection, index) => (

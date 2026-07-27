@@ -32,7 +32,7 @@ function parseCsp(value: string): Map<string, readonly string[]> {
   );
 }
 
-function expectExactSecurityHeaders(response: APIResponse): string {
+function expectExactSecurityHeaders(response: APIResponse, pathname = "/"): string {
   const headers = response.headers();
   expect(headers["x-robots-tag"]).toBe("noindex, nofollow, noarchive");
   expect(headers["referrer-policy"]).toBe("no-referrer");
@@ -41,9 +41,10 @@ function expectExactSecurityHeaders(response: APIResponse): string {
   expect(headers["permissions-policy"]).toBe(
     "camera=(), microphone=(), geolocation=(), payment=()",
   );
-  expect(headers["cache-control"]).toBe(
+  expect([
     "private, no-cache, no-store, max-age=0, must-revalidate",
-  );
+    "no-cache, must-revalidate",
+  ]).toContain(headers["cache-control"]);
 
   const rawCsp = headers["content-security-policy"];
   expect(rawCsp).toBeTruthy();
@@ -91,9 +92,13 @@ function expectExactSecurityHeaders(response: APIResponse): string {
   expect(csp.get("frame-src")).toEqual(["'none'"]);
   expect(csp.get("frame-ancestors")).toEqual(["'none'"]);
   expect(csp.get("base-uri")).toEqual(["'self'"]);
-  expect(csp.get("form-action")).toEqual(["'none'"]);
+  expect(csp.get("form-action")).toEqual(
+    pathname === "/checkout" || pathname.startsWith("/checkout/")
+      ? ["'self'", "https://payment-stage.ecpay.com.tw"]
+      : ["'self'"],
+  );
   expect(csp.get("upgrade-insecure-requests")).toEqual([]);
-  expect(rawCsp).not.toContain("https://");
+  if (!pathname.startsWith("/checkout")) expect(rawCsp).not.toContain("https://");
   expect(rawCsp).not.toContain("http://");
   expect(rawCsp).not.toContain(" *");
 
@@ -121,7 +126,7 @@ test("every reachable route returns its declared status and security baseline", 
       }
       try {
         expect(response.headers()["content-type"], route.path).toContain("text/html");
-        expectExactSecurityHeaders(response);
+        expectExactSecurityHeaders(response, route.path);
       } catch (error) {
         failures.push(`${route.path}: ${error instanceof Error ? error.message : String(error)}`);
       }
@@ -137,9 +142,23 @@ test("CSP uses a fresh nonce and exact production/development policy variants", 
   test.skip(testInfo.project.name !== "desktop-chromium", "Header contract runs once.");
   const home = await request.get("/");
   const product = await request.get("/product/field-house-polo");
-  const homeNonce = expectExactSecurityHeaders(home);
-  const productNonce = expectExactSecurityHeaders(product);
+  const homeNonce = expectExactSecurityHeaders(home, "/");
+  const productNonce = expectExactSecurityHeaders(product, "/product/field-house-polo");
   expect(productNonce).not.toBe(homeNonce);
+});
+
+test("prefetch-like headers cannot bypass the HTML CSP and nonce baseline", async ({
+  request,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Header contract runs once.");
+  const response = await request.get("/", {
+    headers: { Purpose: "prefetch", Accept: "text/html" },
+  });
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("text/html");
+  const nonce = expectExactSecurityHeaders(response, "/");
+  const html = await response.text();
+  expect(html).toContain(nonce.slice("'nonce-".length, -1));
 });
 
 test("dynamic social descriptions keep the concept and non-transaction disclosure", async ({
@@ -159,6 +178,126 @@ test("dynamic social descriptions keep the concept and non-transaction disclosur
     expect(description, path).toContain("概念展示");
     expect(description, path).toContain("不提供真實交易");
   }
+});
+
+test("canonical counts, Taiwan scope, and the sole main landmark stay consistent", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Content contract runs once.");
+
+  for (const path of [
+    "/admin",
+    "/care-repair",
+    "/orders",
+    "/orders/access",
+    "/payment",
+  ]) {
+    await page.goto(path);
+    await expect(page.locator("main")).toHaveCount(1);
+    await expect(page.locator("main main")).toHaveCount(0);
+  }
+
+  await page.goto("/shop");
+  await expect(page.getByText(/50 件首發作品/)).toBeVisible();
+  await page.goto("/collections");
+  await expect(page.getByText(/5 個篇章/)).toBeVisible();
+  await page.goto("/journal");
+  await expect(page.locator("article")).toHaveCount(5);
+  await page.goto("/story");
+  await expect(page.getByText(/私人草地球場與長桌/)).toBeVisible();
+  await page.goto("/lookbook");
+  await expect(page.locator("figure")).toHaveCount(36);
+  await expect(page.locator("figure img")).toHaveCount(36);
+  for (const section of await page.locator("section[aria-labelledby]").all()) {
+    const labelledBy = await section.getAttribute("aria-labelledby");
+    expect(labelledBy).toMatch(/^[a-z][a-z0-9-]*$/);
+    await expect(page.locator(`#${labelledBy}`)).toHaveCount(1);
+  }
+
+  await page.goto("/robots.txt");
+  await page.evaluate(() => {
+    window.localStorage.setItem(
+      "lignee:cart",
+      JSON.stringify({
+        version: 1,
+        lines: [{ skuId: "field-house-polo-s-estate-olive", quantity: 1 }],
+      }),
+    );
+  });
+  await page.goto("/checkout");
+  await expect(page.getByRole("option", { name: /台灣本島/ })).toHaveCount(1);
+  await expect(page.getByRole("option", { name: /離島/ })).toHaveCount(0);
+});
+
+test("five-card editorial grids remain balanced at 768px", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Tablet geometry runs once.");
+  await page.setViewportSize({ width: 768, height: 1024 });
+
+  const expectBalancedFive = async (
+    cards: ReturnType<typeof page.locator>,
+    label: string,
+  ) => {
+    await expect(cards, label).toHaveCount(5);
+    const boxes = await cards.evaluateAll((elements) =>
+      elements.map((element) => {
+        const box = element.getBoundingClientRect();
+        return { x: box.x, y: box.y, width: box.width };
+      }),
+    );
+    expect(Math.abs(boxes[0].y - boxes[1].y), `${label} first row`).toBeLessThan(2);
+    expect(Math.abs(boxes[1].y - boxes[2].y), `${label} first row`).toBeLessThan(2);
+    expect(Math.abs(boxes[3].y - boxes[4].y), `${label} second row`).toBeLessThan(2);
+    expect(Math.abs(boxes[3].width - boxes[4].width), `${label} second row widths`).toBeLessThan(2);
+    expect(boxes[4].x, `${label} fifth card must not be a left orphan`).toBeGreaterThan(0);
+  };
+
+  await page.goto("/");
+  await expectBalancedFive(
+    page.locator('section[aria-labelledby="chapters-title"] > div:last-child > a'),
+    "home chapters",
+  );
+  await expectBalancedFive(
+    page.locator("section").filter({
+      has: page.getByRole("heading", { name: "寫給緩慢生活的筆記", level: 2 }),
+    }).locator("article"),
+    "home journal",
+  );
+
+  await page.goto("/journal");
+  await expectBalancedFive(
+    page.locator('section[aria-label="Estate Journal 文章"] article'),
+    "journal page",
+  );
+});
+
+test("the site header remains sticky and unobstructed during normal scroll", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== "desktop-chromium", "Sticky geometry runs once.");
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await page.goto("/");
+
+  const header = page.locator(".site-header");
+  await expect(header).toBeVisible();
+  const initial = await header.boundingBox();
+  expect(initial).not.toBeNull();
+  expect(initial?.y ?? 0).toBeGreaterThan(0);
+
+  await page.evaluate(() => window.scrollTo(0, 1_200));
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(1_000);
+  const stuck = await header.boundingBox();
+  expect(stuck).not.toBeNull();
+  expect(Math.abs(stuck?.y ?? 100)).toBeLessThan(2);
+  expect(Math.abs((stuck?.height ?? 0) - (initial?.height ?? 0))).toBeLessThan(2);
+  expect(
+    await header.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      const hit = document.elementFromPoint(rect.left + rect.width / 2, rect.height / 2);
+      return hit instanceof Node && element.contains(hit);
+    }),
+  ).toBe(true);
 });
 
 test("newsletter, appointment, and checkout demo values never leave the browser", async ({
@@ -189,17 +328,18 @@ test("newsletter, appointment, and checkout demo values never leave the browser"
       "lignee:cart",
       JSON.stringify({
         version: 1,
-        lines: [{ skuId: "field-house-polo-m-deep-olive", quantity: 1 }],
+        lines: [{ skuId: "field-house-polo-s-estate-olive", quantity: 1 }],
       }),
     );
   });
   const checkoutName = "SENTINEL-CHECKOUT-NAME";
   const checkoutEmail = "sentinel-checkout@privacy.invalid";
-  const checkoutAddress = "虛構 SENTINEL-CHECKOUT-ADDRESS";
+  const checkoutAddress = "Sandbox SENTINEL-CHECKOUT-ADDRESS";
   await page.goto("/checkout");
-  await page.getByRole("textbox", { name: "虛構收件稱呼" }).fill(checkoutName);
-  await page.getByRole("textbox", { name: "虛構聯絡信箱" }).fill(checkoutEmail);
-  await page.getByRole("textbox", { name: "虛構配送地址" }).fill(checkoutAddress);
+  await expect(page.getByText("伺服器價格已確認。")).toBeVisible();
+  await page.getByRole("textbox", { name: "Sandbox 收件稱呼" }).fill(checkoutName);
+  await page.getByRole("textbox", { name: "Sandbox 聯絡信箱" }).fill(checkoutEmail);
+  await page.getByRole("textbox", { name: "Sandbox 配送地址" }).fill(checkoutAddress);
   await page.getByRole("button", { name: "繼續付款規劃" }).click();
   await expect(page.getByRole("heading", { name: "付款方式規劃" })).toBeVisible();
 

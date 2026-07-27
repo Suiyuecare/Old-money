@@ -1,159 +1,523 @@
-# Plan: LIGNÉE 當代英倫莊園生活風格商城
-_Locked via grill — by Codex + user_
+# Plan: LIGNÉE 正式營運商城 v2
+_決策範圍已由 grill 鎖定；第 5 輪技術修訂完成，實作仍待使用者裁決_
 
 ## Goal
-從零建立一個可分享的高擬真精品商城原型，將 LIGNÉE 定位為面向台灣 30–55 歲高收入都會族群的單一自有生活風格品牌。網站不靠醒目 Logo、折扣或浮誇的「老錢」符號，而以當代英倫莊園世界觀、克制的編輯設計、原創商品與人物影像，以及完整但不實際扣款的購物流程，販售「值得被傳承的生活方式」。第一版以繁體中文完成購物資訊，以英文承載品牌氣氛；可在本機完整運作並建立 Vercel 預覽，但不建立真實付款、庫存或訂單，也不傳輸或持久化個資；使用者輸入只在當次頁面記憶體中暫時處理。
+將現有 LIGNÉE 高擬真原型升級為可正式營運、但預設安全關閉收款的台灣 DTC 自有品牌商城。V1 僅服務台灣本島，以繁體中文與 TWD 銷售 50 件同日首發商品，串接綠界導轉式信用卡／Apple Pay、綠界 B2C 電子發票、綠界物流黑貓宅急便、Resend 交易信與新的東京區 Supabase；顧客採訪客結帳，不建立會員。品牌以 Alderwick House 串連當代英國莊園與私人草地網球場生活，生成 150 張公開影像與 8 張內部人物基準照。所有功能先以 Sandbox、`noindex`、deployment upper bound `COMMERCE_CAPABLE=false` 及共享 runtime controls `commerce_live=false`／`checkout_enabled=false` 部署；只有真實公司、商戶、商品、圖片、庫存、法律文件及全流程驗收全部完成後，才由 Owner 明確開啟正式收款與索引。
 
 ## Approach
 
-1. **建立前端基礎與資料邊界**
-   - 使用 Next.js App Router、React Server Components 優先、TypeScript strict mode 與 `pnpm`；只有搜尋／篩選、收藏、購物車、抽屜與結帳狀態使用明確的 Client Components。
-   - 使用 CSS Modules＋全域 CSS design tokens，自製語意化元件，不引入 UI component library 或動畫框架；圖片一律經 `next/image`，動態只用 CSS 與小型 IntersectionObserver hook。
-   - 正式相依僅限 Next.js、React、React DOM 與 Zod；測試相依為 Vitest、Testing Library、Playwright 與 `@axe-core/playwright`。實作開始時解析當時穩定版本並立即寫入 `pnpm-lock.yaml`，之後不得浮動升級。
-   - 商品、系列、Journal 與品牌故事以本地型別化模組管理，保留日後改接 CMS、庫存與商務後端的 adapter 邊界；原型不建立 API route、Server Action 或資料庫。
-   - 購物車與收藏使用自製 Context＋reducer／external-store adapter；不引入另一套全域狀態函式庫。
-   - 所有展示表單以 Client Component 阻止原生提交，不呼叫 `fetch`、XHR、beacon、mailto 或外部 action；姓名、地址與聯絡資料只存在當下記憶體，重新整理即清除。
-   - 原型模式為 fail-closed 預設；預覽環境持續顯示「概念展示、無法交易、請勿輸入真實資料」橫幅並禁止搜尋索引。
+1. **先完成一天內的 build-versus-buy ADR，再凍結 V1 範圍**
+   - 實作前用一個工作日完成 `docs/adr/0001-commerce-platform.md`，以同一組 must-have 比較既有客製堆疊、SHOPLINE、91APP、CYBERBIZ 與 Shopify＋台灣在地整合；不得用泛稱、銷售簡報或單看月費代替實測／書面證據。
+   - 評分至少包含：LIGNÉE 現有品牌／編輯體驗的可保留程度、50/50 同日發布、訪客安全查單、綠界信用卡／Apple Pay／B2C 發票／黑貓正逆物流、台灣退貨、MFA／RBAC／audit、資料匯出與可攜性、停單與既有訂單續作、備份／還原、無廣告追蹤、前三年總成本、上線時間與日常維運責任。
+   - Hard gates 是：精確支援已鎖定綠界付款／Apple Pay／B2C 發票／黑貓正逆物流、台灣本島與 14 日政策、訪客安全查單、50/50 release、可保留品牌體驗、MFA／角色／audit、完整訂單與商品匯出、停新單但續作既有訂單、無強制廣告追蹤。任何一項只能靠不受支援 workaround 才完成，該候選即不通過。
+   - 通過 hard gates 後以 100 分評分：security／compliance 30、commerce／operations 25、brand／UX 20、data portability 10、delivery／maintenance 10、三年 risk-adjusted TCO 5。若受管候選達 80 分、security／operations 不低於 custom，且三年 TCO 至少低 20% 或可驗證交付時間至少短 30%，ADR 結果為 `NEEDS_USER_DECISION`，把證據帶回使用者；否則 custom 才可 `PROCEED`。
+   - custom比較基線不得漏算本計畫新增的兩個AWS account、DeploymentCapability／CryptoCredential＋role-lifecycle／CryptoUnwrap／Auth brokers、AssetJobAssertionIssuer、RecoveryCertificateEnrollment／RecoveryTrustBootstrap／PrivilegedRecoveryGateway、Auth與Vercel兩組application-layer outbound proxies／DynamoDB／KMS／ACM PCA／WAF、專用Vercel API／Protection bypass credentials與輪替、S3 Object Lock、Supabase PITR與disposable clones、Vercel Pro／Secure Compute static egress／Edge Config／Blob、Resend、獨立dead-man、雙人custody、季度DR及on-call人時；managed候選也用相同交易量、Email／圖片／備份及三年人力假設，TCO證據附價格日期與敏感度。
+   - ADR decision owner 是使用者；Codex 只整理證據與建議。一天內無法取得書面 vendor 證據時同樣標 `NEEDS_USER_DECISION`，不得把缺資料當成受管平台失敗，也不得預設繼續 custom。
+   - ADR 是有時限的架構核對，不重開已鎖定的品牌、商品、內容、台灣市場或顧客體驗範圍；通過後即成為後續 PR 的 required artifact。
 
-2. **建立 LIGNÉE 品牌設計系統**
-   - 固定品牌顯示名稱 `LIGNÉE`、標語 `Made to Be Inherited.`，網址與程式識別使用不含重音的 `lignee`。
-   - 以暖象牙白、炭灰、深橄欖綠、牛血紅與少量黃銅色建立色彩系統；透過留白、材質與排版傳達價值，不使用滿版金色、皇冠、盾牌或仿古模板紋理。
-   - 英文展示字使用 SIL Open Font License 的 Cormorant Garamond，透過 `next/font` 載入拉丁子集；繁中與內文使用系統字體堆疊（PingFang TC、Microsoft JhengHei、Noto Sans TC fallback），避免額外下載大型 CJK 字型。授權與來源記錄於 `THIRD_PARTY_NOTICES.md`。
-   - 以文字標誌為主，搭配一個克制的交織 `L` 印記，僅用於皮件壓印、頁尾、favicon 與包裝情境。
-   - 互動採圖片淡入、分段文字揭露、商品卡細微縮放與抽屜轉場；支援 `prefers-reduced-motion`，不使用有聲自動播放或重度視差。
+2. **凍結運行模式與不可繞過的開關**
+   - 市場固定為台灣本島、繁體中文、TWD、含 5% 營業稅；不做離島、跨境、多幣或完整英文版。
+   - 商城保留三種可辨識模式：
+     - `demo`：本機與 Vercel Preview 使用假資料／mock adapter，不寫正式 Supabase、不呼叫正式供應商。
+     - `production-disabled`：正式部署可讀正式目錄與後台，但 immutable deployment upper bound `COMMERCE_CAPABLE=false` 或共享 runtime controls 的 `commerce_live=false`／`checkout_enabled=false`，全站 `noindex`，不得建立真實付款。
+     - `live`：只有完成本計畫全部 launch gate，部署以 `COMMERCE_CAPABLE=true` 建置，且 Owner 以 AAL2 明確切換共享 runtime controls 的 `commerce_live=true` 與 `checkout_enabled=true` 才能進入。
+   - `COMMERCE_CAPABLE`只代表該Production deployment是否具備正式provider bindings，是不可由事故流程放大的環境上限；`commerce_live`、`checkout_enabled`、`production_canary_enabled`、`ecpay_apple_pay_enabled`、`search_index_enabled`、`catalog_emergency_no_cache`、`media_emergency_no_cache`與單調`media_safety_revision`存在`ops_private.runtime_controls`，並與append-only media tombstone set一起投影到Vercel Edge Config safety document。Routing Proxy在Data Cache／media CDN cache前讀Edge；所有公開application response（HTML、RSC／DTO、metadata、robots、sitemap、Open Graph、JSON-LD）也必須在任何Data Cache read前以`no-store`讀DB safety revision、核對Edge revision，並把revision納入response／cache key。只有build產生且不承載可撤銷內容的fingerprinted JS／CSS／font可免除此檢查；`/media/*`明確不屬此豁免。
+   - 有效值採fail-safe合併：live／checkout／production canary／Apple Pay／index是deployment upper bound、DB與Edge三者的AND；`catalog_emergency_no_cache`與`media_emergency_no_cache`是DB或Edge任一true即生效。Edge／DB不可讀、revision倒退、彼此不一致或public response無法完成DB safety read時，新public checkout=false、canary=false、Apple Pay=false、index=false／noindex、public cache bypass=true；既有訂單predicates仍各自續作。`/media/*`在Edge不可讀、media revision不一致、unknown／非`live_approved`或tombstoned時不回原bytes。所有public application response均為`private, no-store`，因此舊Edge＋舊Data Cache不能在DB已收緊後直接回覆舊application response。
+   - Owner 只能經 AAL2 重新驗證的 BFF，以 expected revision 做 compare-and-set。人工錯價、停售、召回或停單採 restrictive Edge-first fencing：先建立不可變 safety intent／新 revision，將 Edge 寫成 no-cache／noindex／checkout-off 的保守狀態並取得 acknowledgement，才在 DB transaction 提交對應商務 mutation、runtime state、audit 與 invalidation outbox；任一步未知或失敗都讓 Edge 保持 restrictive，由 reconciliation 收斂。資料庫自行偵測 invariant failure 時可先原子 fail-close DB，下一個公開 response 的 no-store revision check 必須立即偵測 mismatch 並拒絕 cache；不得等 outbox 傳播。重新開啟則必須 DB／Edge 同 revision、purge acknowledgement及所有 readiness gate 同時成立。
+   - 窄範圍incident principal只能做單調安全轉移：`commerce_live`／`checkout_enabled`／`production_canary_enabled`／`search_index_enabled`由true→false，`catalog_emergency_no_cache`／`media_emergency_no_cache`由false→true，或為指定asset SHA append不可逆tombstone並提高`media_safety_revision`；並使用上述fencing／CAS／audit。任何principal都不能自動反向開啟、移除tombstone或讓同SHA重新發布。Edge更新結果未知走provider-operation reconciliation，安全合併持續restrictive。
+   - 允許建立新結帳的條件為 `COMMERCE_CAPABLE && canonical_host && effective_commerce_live && effective_checkout_enabled && canCreateCheckout()`；建立 reservation 的 transaction 會重新鎖定並讀取最新 DB revision，避免 request-level 檢查後才被停單的 TOCTOU。停單不得停止既有 webhook、查單、出貨、退款、發票或後台。
+   - 明確實作獨立 readiness predicates：`canCreateCheckout`、`canAcceptPaymentCallback`、`canFulfillExistingOrder`、`canRefund`、`canInvoice`、`canAccessAdmin`、`canServePublicMedia`與`canCallPrivilegedBroker(scope)`。每個 predicate 只檢查自身必要依賴；checkout-only 設定缺失不得拖垮既有訂單，任何已收款作業失敗都進durable queue／incident，不得遺失。`canCallPrivilegedBroker`要求exact deployment binding為scope-approved candidate或active、generation未撤銷、短效capability與DPoP匹配；缺失時只拒絕該Auth／asset／unwrap呼叫並排reconcile，不能偽裝成成功。`canFulfillExistingOrder`另逐order拒絕`payment_at_risk`及不一致parcel custody，`canRefund`鎖定unit-credit／receipt recovery budget並保留open dispute，`canServePublicMedia`只對精確SHA／variant成立並要求Edge-before-cache gate、active media revision、`live_approved`且無tombstone。
+   - 另有不對public route開放的`canCreateProductionCanary`，專供Apple Pay／live provider低額驗收：要求`COMMERCE_CAPABLE=true`、canonical host、DB／Edge `production_canary_enabled=true`、public `commerce_live=false`／`checkout_enabled=false`、recent-AAL2 Owner session、CSRF及預先登記tester Email／device。只有第30號`Breakfast Room Mug`的launch-approved immutable含稅正式價**確實仍為NT$2,200**時，才可用該SKU一件及一件隔離canary stock；若成本／供應鏈核准後不是NT$2,200，canary保持off，直到使用者以plan／ADR revision核准另一個「既有50件內的精確SKU＋正式價」，不得把Sandbox草案價靜默升格、調amount、建立第51件或免稅。入口`POST /api/internal/canary/checkout`只建立受限intent，再303到analytics-free的`/checkout/canary/{opaque_intent}`，由與一般`/checkout`相同的provider-form renderer及Live-only CSP送綠界；最多1筆in-flight、2筆／日、15分鐘自動關閉。它仍走正常Email、price、inventory、payment receipt、QueryTradeInfo、invoice、取消核准／退款／發票調整、`cancel_restock`、idempotency與audit invariants，order標`production_canary`且不得進analytics／fulfillment。任何參數不符或測試完成都原子關canary；此predicate只能建立上述固定一行的測試order，不能打開public checkout或其他商品。
+   - 只有 `https://estatelignee.com` 可建立正式 commerce command；`www` 先 301，`*.vercel.app`、Preview、localhost 與其他 Host 一律拒絕正式結帳。所有 Preview 與舊 Production deployment URL 啟用 Vercel Deployment Protection；provider callback 只使用 canonical host，回滾後仍由目前 canonical deployment 處理。
+   - Apple Pay 未完成商戶開通／實機驗證時 `ecpay_apple_pay_enabled=false`；搜尋索引不可因部署自動開啟。所有 runtime controls 只能由 server 讀取，缺值、矛盾或正式 secrets 不完整時按 predicate fail closed；不得讓 `NEXT_PUBLIC_*` 或瀏覽器輸入改寫。
 
-3. **建立當代虛構品牌世界觀**
-   - 品牌為單一自有品牌，不再採多品牌選物店架構；所有商品均掛名 LIGNÉE。
-   - 世界觀為當代的 **The Lignée Estate**：以英國莊園、馬術、獵犬、林地、獵場早餐、藏書室、溫室與晚宴延展故事。
-   - 狩獵以英國鄉野運動氛圍呈現；獵槍僅可作極少量遠景道具，不出現獵物、血腥或炫耀戰利品。
-   - 人物保持匿名，不建立固定家族角色、爵位或可被當作史實的家族年表。
-   - 可以虛構莊園與傳承敘事，但必須把品牌神話和商品事實分開；不虛構可驗證的企業歷史、實際產地、製程認證或材料來源。
+3. **在既有 Next.js 專案上建立正式架構，不重寫已驗證的體驗**
+   - 保留 Next.js App Router、React Server Components 優先、TypeScript strict、CSS Modules、全域 design tokens、`pnpm`、Vitest、Playwright 與 axe。
+   - 保留目前已完成的 URL 可還原搜尋／五類 facets／排序、精確 SKU 選擇、購物袋、收藏、鍵盤操作及視覺系統；把本地 catalog、模擬 checkout 與展示表單逐層替換成 server-authoritative adapter。
+   - 加入並鎖版 `@supabase/ssr`、`@supabase/supabase-js`、`resend`、React Email、Vercel Analytics／Speed Insights，以及實際需要的影像驗證工具；綠界簽章優先使用 Node `crypto` 按官方規格實作，避免無必要的第三方 SDK。
+   - 建立窄介面 `CatalogRepository`、`CommerceRepository`、`PaymentGateway`、`InvoiceProvider`、`LogisticsProvider`、`EmailProvider`；每個外部服務都有 production 與 mock adapter，讓本機、CI、Preview 不需正式 credentials。
+   - 敏感路由集中於 `/checkout`、`/orders`、`/admin`、`/api/webhooks/*` 與 `/api/internal/*`；公開品牌、分類、篇章與商品內容可獨立快取。
+   - 更新 README、SECURITY、環境變數範例、營運手冊、資料字典、供應商 runbook 與事故處理文件，移除「非交易原型」已不再適用的敘述，但在 live gate 前保留醒目 Sandbox 狀態。
 
-4. **建立 27 件首發商品資料**
-   - 每個指定方向各有一件代表商品，共 27 件；下列材質字樣是「概念開發目標」，不是已完成採購或驗證的銷售聲明：
-     - 服飾 7 件：Polo 衫、牛津襯衫、針織衫、西裝外套、西裝褲、百慕達短褲、長洋裝。
-     - 配件 8 件：真皮皮帶、手錶、托特包、公事包、太陽眼鏡、領帶、絲襪、珍珠耳環。
-     - 居家生活 8 件：香氛蠟燭、擴香、床包、毛毯、馬克杯、玻璃杯、木製托盤、花瓶。
-     - 文具 4 件：真皮筆記本、黃銅原子筆、木質收納盤、日誌／月計畫本（保留兩種版型變體，總商品數仍為 27）。
-   - 男女服飾與人物曝光接近 1:1；居家、文具與多數配件不分性別。
-   - 服飾提供 XS–XL 與 2–4 種低飽和色；其他商品依概念材質、容量或尺寸提供可選變體。每個有效組合必須是明確列舉的 SKU，不允許由前端自行拼出不存在的規格組合。
-   - 價格使用新台幣：服飾 NT$6,800–32,000；配件 NT$4,800–68,000，手錶最高 NT$120,000；居家 NT$1,800–16,000；文具 NT$1,200–9,800。
-   - `Product` 必須有穩定的 `id`／`slug`、名稱、類別、適用對象、系列 ID、基準整數 TWD 價格、可選軸、概念材質、尺寸／容量、保養、資產 ID 與相關商品 ID。產品不重複保存 SKU ID；所有 SKU 一律由 `SKU.productId` 推導。
-   - `SKU` 必須有穩定的 `id`、`productId`、完整 option key/value、可選整數價格覆寫、展示狀態與代表資產 ID；SKU ID 是購物車行項目的唯一合併鍵。
-   - SKU 的 effective price 定義為 `sku.priceTwd ?? product.basePriceTwd`。商品卡若所有 SKU 同價顯示單價，否則顯示最低至最高價；PDP 在完整選定 SKU 前顯示價格範圍，選定後顯示該 SKU 精確價格。
-   - 價格篩選在任一有效 SKU effective price 落入含邊界區間時保留該商品；價格低到高依最低 SKU 價、高到低依最高 SKU 價排序。購物車小計、免運門檻與總額只使用每行 SKU 的 effective price × quantity。
-   - 持久化的 `CartLine` 僅包含 `{ skuId, quantity }`；顯示名稱、圖片與價格每次都從 canonical catalog 重算。價格全部使用整數新台幣，不用浮點數。
-   - 使用 Zod schema 與內容完整性測試，在 build 前拒絕重複 ID／slug、孤立 SKU、無效 option、缺圖、失效系列或相關商品、非正整數價格、重複 related ID 與自我引用。A→B、B→A 的互相推薦合法；UI 永遠只展開一層，不遞迴呈現。
-   - 在供應商未確認前，商品名稱不直接使用未驗證材料作事實性命名；介面以「概念材質／預計規格」呈現皮革、黃銅、珍珠等方向，不得寫成「英國製」「義大利皮革」「瑞士機芯」等已證實事實。
+4. **建立新的 Supabase Production 專案與明確的環境隔離**
+   - 新建專用 Supabase 專案 `lignee-commerce`，region 固定東京 `ap-northeast-1`；絕不沿用 `tiorfiqiowylbnartegx`，因該專案已有 HR／平台正式資料。
+   - Vercel 繼續使用既有專案 `prj_DKYM3lvhibSXp1khm0Xv6m1EOv7g`，Functions region 設為東京 `hnd1`；GitHub remote 保持 `Suiyuecare/Old-money.git`。
+   - 正式主網域規劃為 `https://estatelignee.com`，`www` 以 301 轉向 apex；截至 2026-07-24 僅確認可購買，尚未註冊，因此 DNS、所有權與續費都屬 launch gate。
+   - 本機使用 Supabase CLI、完整 migration 與假 seed；Vercel Preview 只使用 demo adapter，不得取得 production DB、綠界、Resend 或物流 secrets。
+   - Vercel Commerce runtime只持正式provider、storefront／worker DB及cron所必需的Production secrets；KEK／HMAC logical keyring只在Supabase Vault，`crypto_reader` SCRAM只在AWS Crypto broker Secrets Manager，兩者都不進Vercel env／artifact。第5節Auth secret只在獨立Auth proxy，另有下述AWS backup account持read-only export credential與加密recovery bundle。每個環境的Merchant ID、HashKey、HashIV、Resend key、storefront／worker DB credential與cron secret分離，永不提交Git。
+   - 正式商務資料只存在單一長期 remote Production 專案；migration 先在全新 local database 與 CI 測試，不維持常駐 staging。任何會改 Auth、Vault、grants／RLS、Cron、extension 或 migration 的 release，仍必須建立同東京區的 disposable rehearsal project：首發前以完整 synthetic seed，已有正式資料後以 Supabase「Restore to a New Project」隔離複本演練。複本先套 network restriction、關閉 `pg_cron`／`pg_net`／外寄 Email／provider webhook與其他外部 side effect，只供兩位 Owner及 trusted CI，證據遮蔽後 24 小時內銷毀；未取得演練證據不得套 Production。
+   - Production不啟用`pg_net`或任何可從DB直接呼叫Internet的extension；Supabase `pg_cron`只可在本DB做deadline scan、標記／排outbox，沒有provider／Email／Vercel／AWS secrets，即使被clone後短暫執行也只改複本資料。所有external effect只能由Vercel／AWS worker發出，worker需未被DB backup複製的Production workload identity／provider credential，且連線字串綁精確source project；restore project不自動連任何worker。rehearsal若需跑worker，使用另一組identity與mock endpoints並先清空production outbox destinations。故意讓clone `pg_cron`持續跑、重放outbox與偽造DB欄位仍不能碰任何Production provider的clone-escape負向測試是launch gate。
+   - Catalog media與private case／upload分別建立兩個**private-access** Vercel Blob store，建立時明確固定`--region hnd1`；region／access建立後不可變，任一store若不符就重建而不是沿用。case Blob仍先做application encryption；catalog source／variants雖供公開展示，Blob origin本身也不可匿名讀，不能把private URL當授權。
+   - Browser、HTML、RSC／DTO、JSON-LD、Open Graph與Email永不輸出Vercel Blob origin；公開媒體只使用same-origin URL`https://estatelignee.com/media/{asset-sha}/{variant}`並直接使用manifest內預先產生variant，不經另有獨立cache生命週期的`/_next/image`。`media_assets.status`只允許`draft → review → live_approved → revocation_pending → revoked`；append-only`media_revocation_tombstones`以asset SHA唯一並涵蓋所有variants，tombstoned SHA不可復活，replacement必須是新bytes／新SHA。每個外部media request先由Routing Proxy在任何cache lookup前核對Edge tombstone與`media_safety_revision`，核准後只internal rewrite到含revision的cache key；Edge不可用／mismatch回503，unknown／非approved回404，revoked回410，皆不回原bytes。成功response明確不用`immutable`：`Cache-Control: public, max-age=0, must-revalidate`及`Vercel-CDN-Cache-Control: public, s-maxage=60, stale-while-revalidate=0, stale-if-error=0`。若production-disabled測試無法證明Edge-before-cache與精確purge，`/media/*`全面`no-store`，不得以效能理由退回immutable。如此第21節`img-src 'self'`不需放寬，直接Blob URL洩漏／匿名讀測試會阻擋build。
+   - 正式資料庫至少使用支援PITR／physical backup的Supabase付費方案；同project可用且可執行PITR的資料事故目標RPO≤5分鐘、演練RTO≤4小時。獨立AWS backup account的排程ECS task每晚以`backup_exporter LOGIN NOINHERIT NOBYPASSRLS`做client-side encrypted logical export；tenant-owned tables使用明列SELECT／sequence USAGE與只對該role成立的read-only RLS policies，`default_transaction_read_only=on`並設statement／idle timeout，沒有INSERT／UPDATE／DELETE／EXECUTE unwrap能力。Auth／Vault等Supabase-managed schema只可使用當期官方支援、在disposable project實證可還原的export identity／dump介面；若官方介面不能涵蓋必要ciphertext，就改用每個managed object已證明可授權的窄`SECURITY DEFINER` export function，只回復原所需的加密欄位並套第5節function-owner matrix，不得假設tenant可授予`BYPASSRLS`或superuser。首個disposable rehearsal必須以實際Supabase權限證明完整row count、restore及「不能讀`vault.decrypted_secrets`」；任一路徑做不到就判custom live gate失敗。credential只在backup-account Secrets Manager，task走固定EIP＋TLS `verify-full`，30天輪替且每次connection／row-count manifest告警；app、Vercel、GitHub與Auth broker拿不到它。migration SQL、extension／role／grant manifest與data dump一起驗證。
+   - Supabase Production project的network allowlist只包含三組存證CIDR：上述backup ECS固定EIP、AWS operational account gateway／broker固定egress，以及主Vercel project在hnd1 Production Secure Compute的固定egress；Preview／developer IP／任意Vercel deployment IP都不列入。Vercel storefront／worker DB連線只從Secure Compute送出；per-release crypto credential及unwrap DB traffic只從AWS operational broker固定egress送出。old deployment role撤銷另提供第二層保護。若實際Vercel方案不能提供可驗證static egress，就改由固定egress DB gateway承接或判custom live gate失敗，不得把Supabase network restriction放寬到Internet。
+   - Production DDL沒有developer laptop或GitHub runner直連例外。AWS operational account內的`MigrationCredentialBroker`與one-shot ECS `MigrationRunner`共用上述固定egress但使用獨立IAM roles／subnets；tenant-admin DB credential只存在broker專用Secrets Manager secret，runner、Vercel、GitHub及人員都不能讀。新project第一次尚無DB verifier時，唯一例外是第5節RecoveryTrustBootstrap：gateway直接驗2-of-3 initial Ed25519 manifest，broker只能執行image內hash-pinned的`trust-bootstrap-v1.sql`，建立寫入同一HMAC v1所必需的最小Vault／verifier objects，不能建立一般商務schema、接收任意SQL或讓runner連線。該trust generation成為`active`後，另一個綁精確initial-migration digest的單次HMAC assertion才授權broker執行hash-pinned `migration-runner-bootstrap.sql`建立`migration_owner NOLOGIN`與最小migration checkpoint tables，並在DynamoDB原子consume獨立migration generation。每次初始／正常run由broker建立唯一`migration_runner_<operation_id> LOGIN NOINHERIT`、30分鐘隨機SCRAM／`VALID UNTIL`，只授CONNECT及對`migration_owner`的SET membership；runner使用TLS verify-full的**direct non-pooled connection**，固定`application_name=lignee-migration:<operation_id>`並把PID／backend_start回報broker，取得advisory lock後才`SET ROLE migration_owner`套精確ordered digest。session固定`lock_timeout=10s`、`idle_in_transaction_session_timeout=30s`、`idle_session_timeout=60s`、DDL `statement_timeout=5m`，資料backfill拆成每chunk≤2分鐘且總run≤30分鐘。完成或5分鐘失聯時，broker先REVOKE membership、`NOLOGIN`／rotate，再以tenant-admin對**該唯一per-run login作`session_user`的每一個backend**執行`pg_terminate_backend`，不信client可控制的application name、已回報PID或backend_start作撤銷篩選；這三者只供audit／異常連線偵測。確認該role在`pg_stat_activity`歸零後才drop；只改密碼／NOLOGIN或只終止已回報連線都不算成功。trust bootstrap、initial migration與正常流程都必須先在disposable project用**相同image及digest**演練；project identity、before／after schema version、advisory lock、DDL audit、CloudTrail、backend termination與既有連線撤權證據缺一即不執行。若Supabase實際managed role／network／backend termination能力不允許此流程，custom live gate失敗，不改用常駐project-admin連線。
+   - 每個ordered migration digest在DB建立唯一`schema_migration_runs`，固定`release_id`、git SHA、before／after version、完整digest、image digest及run狀態`pending | running | manual_review | complete`；另以`schema_migration_phase_checkpoints`與`schema_backfill_checkpoints`保存ordered `phase_kind ∈ {expand, backfill, validate, enforce, contract}`、phase ordinal、pre／postcondition fingerprint、chunk key-range cursor、row count及chunk hash。每個run可只包含其release核准的phase子集；破壞性`contract`**必須是至少兩個相容deploy之後、由當時release manifest／git SHA核准的另一個新digest與新run**，其precondition引用先前expand／enforce run及相容期證據，不跨release重開舊run。每個可交易DDL phase必須把DDL與該phase checkpoint放在同一transaction提交；每個bounded backfill chunk也把資料變更、cursor、count與hash在同一transaction提交，故response遺失只會重讀已提交checkpoint。所有phase及chunk都須具可重跑precondition／postcondition；V1排除無法交易且無法以catalog probe證明冪等的DDL。Runner重啟必須取得同一advisory lock、提交**完全相同**digest並把實際catalog／data fingerprint與checkpoint比對後才從下一個phase／cursor續跑；digest、cursor或實際catalog不符即`manual_review`且不再執行。只有該run列出的全部phase都符合postcondition，才把最後phase checkpoint、run的`complete` transition與最終`schema_migrations`版本放在同一transaction提交；新的per-run login可接手同一stable run，但不得改release ID／digest或跳過checkpoint。
+   - Vercel OIDC只作官方文件保證的team／owner ID、精確project ID、`environment=production`及專用audience證明；deployment ID、URL與git commit**不是OIDC attested claims**，任何AWS service都不得信caller自報值。每個Production build在build內產生deployment-only Ed25519 DPoP key；private key只進需要特權呼叫的server-function artifact，不進project env、client bundle、source map、log或其他deployment，且只能簽domain-separated deployment enrollment／request proof，不能成為任意signing oracle。Candidate建立後，AWS `DeploymentCapabilityBroker`的release controller不能直接讀Vercel API或Protection bypass secret，只能以SigV4呼叫獨立AWS L7 `VercelReleaseProxy`。原始credentials僅在proxy-side Secrets Manager；API credential採Vercel當期官方實際提供的最低權限與專用非人員帳號，proxy allowlist精確GET deployment endpoint、固定project及response schema，查得exact deployment ID、immutable protected URL、Production environment、git SHA、READY／Protection狀態及reviewed manifest；Protection bypass不假定有path-level provider scope，proxy只對DynamoDB本次candidate記錄中的immutable host、固定enrollment method／path注入它，拒絕redirect、任意URL、其他path／method／project。proxy再送256-bit、`expires≤5m`的單次challenge；route以固定schema回傳canonical public JWK `{kty:"OKP", crv:"Ed25519", x}`與對domain-separated challenge payload的signature，不只回thumbprint。controller先嚴格拒絕額外私鑰欄位／錯curve／非canonical encoding，以該JWK驗Ed25519 signature，再按RFC 7638從required members自行推導`jkt`；只有驗簽與thumbprint都成功，才把canonical JWK、`jkt`及proxy-signed deployment facts以DynamoDB conditional write原子consume challenge並建立`deployment_binding {deployment_id, git_sha, dpop_public_jwk, dpop_jkt, release_generation, status=candidate|active|draining|revoked}`。後續每個DPoP proof的header JWK必須驗簽且RFC 7638 thumbprint等於binding／capability `cnf.jkt`。credentials不進controller／app／GitHub／log；每次release後輪替Protection bypass、Vercel API credential最長30天或事故即輪替。若Vercel實際scope、API response、credential rotation或Protection行為無法在production-disabled證明，custom live gate失敗，不以自稱「read-only／path-scoped」帶過。
+   - Active／approved candidate以「官方Vercel OIDC＋同一private key的per-request DPoP」向broker取得AWS KMS簽發、`nbf`／`exp≤5m`的`deployment_capability`，固定包含exact deployment ID／git SHA／project／environment／release generation／`cnf.jkt`／`jti`及`auth:submit | asset:ingest | crypto:unwrap`中最小scope。Auth broker、`AssetBackupIngest`與Crypto broker都驗capability、DPoP的method／normalized URL／body SHA／timestamp／nonce，且每request核對binding generation／status；OIDC或capability單獨都無權限。nonce／DPoP jti保留至token expiry後；Preview、錯key／audience／body、偽造deployment ID、重播、過期或revoked binding全拒絕。Refresh只在binding允許時；alias切換前停止舊deployment新工作scope，bounded drain後原子提高generation並撤銷舊binding，不能只等JWT到期。AWS Vercel API／automation-bypass credentials、KMS key、binding table與revoke runbook進secret／DR inventory。
+   - 每個private upload及public media publish都建立durable`asset_backup_jobs`；Production relay不直接取得S3寫入權，也不自行持有能被backup account驗證的Vault HMAC。它先以`deployment_capability(scope=asset:ingest)`及opaque job ID呼叫operational account的`AssetJobAssertionIssuer`；issuer持獨立`asset_job_rpc_caller` SCRAM（只在其Secrets Manager、固定egress、只EXECUTE `claim_asset_backup_job`），在DB transaction鎖定job、比對source SHA-256／exact byte length／object class／不可覆寫destination key／runtime revision／binding generation與request hash，原子consume本次token generation後，才用AWS KMS asymmetric ES256 key簽`exp≤5m`、含上述欄位、`jti`、nonce與generation的`asset_job_capability`。backup-account `AssetBackupIngest`同時驗deployment capability／DPoP與asset-job token；KMS public JWK／`kid`先以cross-account configuration manifest釘住，token `jti`在DynamoDB單次consume。Key rotation固定先加入新public verifier並跑fixture、再切issuer writer，舊verifier保留到最大token TTL＋所有引用job terminal；失敗job只有舊token過期／明確未consume後才可由DB CAS簽新generation，不能重用`jti`。
+   - AWS OIDC trust只比對官方存在的project／Production claims；exact deployment／commit authority只來自上述DPoP-bound capability，asset authority另來自KMS-signed job token，兩者任一單獨都不能寫。Ingest逐chunk驗hash／總長、只允許預設public／private prefix及Content-Type、套per-job／per-day object與byte quota、使用conditional create＋Object Lock後才回ack；Preview、舊deployment、任意key／length／hash、已用nonce／`jti`或超quota都拒絕並告警。relay把已application-encrypted private bytes與8張內部人物錨點，以及150張公開source masters、衍生variants、asset manifest／media tombstones串流到backup account，來源Blob token不離開Vercel。任何private case attachment未ack就顯示「處理中」且告警，任何public asset未ack不能`live_approved`；nightly inventory對兩個private stores逐object reconciliation並補漏。如此AWS recovery不需要在來源失聯後持有Vercel Blob credential，且restore必須先套tombstones才可恢復media route。
+   - DB dump、兩類asset copies與manifests都進與Vercel／Supabase不同組織、不同管理員／billing的S3 `ap-northeast-1` account；一般backup bucket啟用versioning及Object Lock **Compliance mode** 30天，Production／Vercel identity只有經上述Ingest建立object的能力，不能delete、overwrite既有version、bypass governance或shorten retention。logical key escrow、age recipient metadata與`recovery_configuration_bundle`另進`recovery-artifacts` Compliance bucket／prefix；每版保留至所有引用該key／設定的Production ciphertext、法律hold及其最後一份backup都到期後再加90天，且不得短於10年。每季及每次key／provider設定變更都重新seal最新完整bundle並實際抽樣還原；離線媒體採相同依賴感知保留，不能用一般30天lifecycle刪掉仍需解密的唯一材料。
+   - 「Supabase project／organization與Vercel credentials均完全遺失」使用獨立nightly backup，誠實承諾RPO≤24小時、演練RTO≤24小時；附件同為≤24小時。前台事故頁、停單、已知已付款但可能落在缺口內的ECPay／invoice／物流provider報表重建與逐筆人工對帳納入runbook，不能把PITR的5分鐘RPO宣稱套到來源control plane全失情境。
+   - 每個 backup 以隨機 data key加密，data key再封裝給離線 age X25519 recovery recipient；recipient private key採2-of-3分持，由兩位非同帳號的營運／法遵 custodian才能復原，AWS backup account另啟用獨立 MFA與recovery contact。runbook禁止把plaintext dump、data key或完整recovery key寫入GitHub／Vercel／Supabase；backup manifest含SHA-256、物件數、DB snapshot、schema／crypto版本與retention deadline。
+   - 每次Production secret／DNS／provider endpoint變更另產生版本化`recovery_configuration_bundle`：保存env schema、非秘密設定、credential issuer／rotation程序，以及ECPay等無法在RTO內重新取得之secret的加密值；可即時重發的AWS／Vercel／Resend credential只存identifier與reissue步驟。bundle同樣以離線age recipient加密、雙人核准，依上項dependent-ciphertext retention進`recovery-artifacts` Object Lock＋離線媒體並做季度masked reconstruction／reseal；明文不得進一般backup log或manifest。
+   - DB、Auth設定、Storage／Blob物件、media tombstones／revision、Vercel env／ReleaseProxy API與Protection credential重發／proxy allowlist、deployment binding／generation、DPoP與crypto lifecycle caller／release role重發程序、AssetJobAssertionIssuer KMS verifier set、recovery enrollment／PCA／RecoveryTrustBootstrap HMAC generation、DNS、webhook、cron、各AWS brokers及第20節logical keyring escrow都列入disaster-recovery runbook。季度從「Production Supabase、Vercel project及其credentials全數不可用／已撤銷」的前提，在隔離新專案實際還原並核對migration checkpoints、row count、訂單總額、RLS／grants、Auth、附件、金鑰版本、media tombstone先於bytes生效與provider停用狀態；來源專案仍可用時另測官方restore-to-new-project，不把它當唯一災難復原路徑。
+   - Supabase PITR、disposable rehearsal、AWS Object Lock、backup runner與離線key custody若無法達到上述頻率、保留期或還原測試，live gate直接失敗；不能只因任一控制台顯示「有備份」就視為完成。
 
-5. **策劃四個首發莊園篇章**
-   - **First Light in the Field**：戶外、馬術與男裝。
-   - **The Conservatory Hour**：女裝、珍珠與花器。
-   - **After Rain, the Library**：皮件、腕錶與文具。
-   - **Dinner at the Long Table**：香氛、織品與餐桌器物。
-   - 同一商品可出現在分類與篇章中；首頁以一天的莊園節奏帶領探索，商店頁再提供直接分類購物。
+5. **用私有 schema、顯式 grants、BFF 與 RLS 建立資料安全邊界**
+   - 建立：
+     - `catalog_private`：分類、篇章、商品、SKU、價格、媒體、發布檢查與 release batch。
+     - `commerce_private`：結帳、訂單、PII、庫存、付款、發票、物流、取消、退貨與退款。
+     - `ops_private`：管理員、稽核、idempotency、provider events、outbox、對帳、告警、Email 與客服案件。
+     - `engagement_private`：電子報與私人預約；不得因下單自動加入行銷名單。
+     - `api`：唯一允許 Data API 暴露的 schema，只放欄位受限、`security_invoker` 的 storefront view 與經授權 RPC。
+   - `public` schema 保持空白並撤銷 `anon`／`authenticated` 預設權限；Supabase 2026新專案的Data／GraphQL API exposure預設可在建立時切換，因此provisioning manifest不依賴平台預設，明確把exposed schemas凍結為只有`api`，排除`public`、四個private schemas、`auth`、`storage`與`vault`。每張新表都顯式啟用RLS、撤銷預設grants再逐項授權；launch test同時查Dashboard／Management設定、PostgREST schema與catalog grants，任何漂移即停單。
+   - 公開瀏覽器不直接查詢私有表；公開頁由 Next.js server layer取得DTO。管理員登入、refresh、TOTP enrollment／challenge及recovery全部經 `https://estatelignee.com` same-origin BFF route代理到Supabase Auth，瀏覽器永不直接連Supabase project origin，也不持有Auth Admin secret；所有 `/admin` 資料與PII操作同樣經BFF。BFF每次驗證session、AAL2、資料庫membership、command scope，必要欄位才在server解密並留下field-level access audit；因此第21節`connect-src 'self'`與實際Auth路徑一致。
+   - 人工與機器命令分開。每個 `SECURITY DEFINER` command由專用 `NOLOGIN NOBYPASSRLS` function-owner（或同一 bounded aggregate 的專用owner）持有；migration維護可機器驗證的 `function → owner → underlying table／column／sequence → SELECT／INSERT／UPDATE → matching RLS policy` privilege matrix，只授予該function實際需要的直接權限及該owner在該object的顯式policy，不用table ownership或BYPASSRLS。schema／table owner是runtime不可登入的migration role；function owner不可建立／替換function、不可授權他人、不可讀矩陣以外資料。`authenticated`、`admin_rpc_caller`與`worker_rpc_caller`只得 `USAGE api`及各自allowlist的`EXECUTE`，沒有private table／sequence grant。每個function固定空`search_path`、完整限定object名稱、撤銷`PUBLIC EXECUTE`、禁止不受控dynamic SQL，人工RPC重驗actor／角色／AAL2，machine RPC驗job／provider scope，並以catalog query與負向測試證明實際grants／policies等於matrix。唯一具role-management能力的例外是第20節不可登入、hash-pinned的`crypto_role_lifecycle_owner`；它仍列入獨立matrix，只能由固定template管理DB-derived `crypto_reader_<release_uuid>`，一般caller與其他function owner無此能力。
+   - 管理員BFF request使用request-scoped、`persistSession=false`的Supabase user-token client，不用`service_role`代替管理權限。揭露PII的admin RPC必須在同一DB transaction寫`pii_access_events`並只回必要ciphertext；若audit commit失敗就不回資料，BFF才以server key解密最小DTO。
+   - 訪客沒有Supabase user。公開catalog server read與checkout／OTP／order-access／newsletter／appointment等same-origin BFF使用獨立`storefront_rpc_caller LOGIN NOINHERIT NOBYPASSRLS` SCRAM role，透過TLS transaction pooler且只具DB CONNECT、`api` USAGE及明列`catalog_read_* | guest_command_*` RPC的EXECUTE，沒有table／sequence／Auth／Vault或admin RPC權限。guest RPC除function-owner matrix外還在DB內驗證runtime／canonical environment、checkout revision、hashed OTP／order／form token、expiry、rate-state與idempotency，回傳最小DTO；browser從不取得此credential或直連Supabase。Production credential獨立輪替，Preview使用不同demo DB／adapter，越權與洩漏後blast-radius測試必須證明它不能列舉PII、跳過Email verification、開站或執行worker／admin command。
+   - 已驗證webhook、Vercel Cron與背景worker不用Supabase `service_role`／secret key。它們以獨立、可輪替的SCRAM credential，透過TLS `verify-full`及Supavisor transaction pooler登入Postgres角色`worker_rpc_caller LOGIN NOINHERIT NOBYPASSRLS`；該角色只具DB `CONNECT`、`api` `USAGE`及明列worker RPC的`EXECUTE`，沒有任何table／sequence／Auth／Vault權限。每個request建立無browser cookie的短連線，credential不進Preview；DB catalog test、canary RPC及季度輪替證明撤銷後立即失效。private schema不列入Data API exposed schemas，管理員、worker與Auth control plane不得共用credential、可變全域session或import path。
+   - 不在主商城deployment保存不可縮權的Supabase Auth Admin secret。`lignee-auth-broker`固定部署於獨立AWS operational account（不得與第4節immutable backup account共用）的東京Lambda：private subnet無直接NAT／Internet egress，security group只可到application-layer outbound proxy；proxy終止內部mTLS、驗證Supabase公開TLS後重新發送，僅接受固定method／schema並allowlist精確`https://<project-ref>.supabase.co/auth/v1/admin/*`，拒絕caller-supplied URL、`/rest/v1`、Storage與其他host／path，所以不是只能看SNI的普通CONNECT tunnel。internal CA／proxy key由AWS ACM Private CA／KMS託管、broker image digest鎖定且有TLS interception contract test。Auth secret只在proxy side Secrets Manager，Lambda本身不持有。
+   - Auth broker ingress不能只信「同一Vercel project」，也不跨服務複製Vault-only intent HMAC。AWS OIDC trust只比對官方存在的team／owner、精確project ID `prj_DKYM3lvhibSXp1khm0Xv6m1EOv7g`、`environment=production`及專用audience；exact deployment／commit authority只來自第4節獨立簽發、DPoP-bound且binding仍為scope-approved candidate或active的`deployment_capability(scope=auth:submit)`，兩者任一單獨都沒有Auth權限。Vercel request只帶opaque operation ID、request hash及capability／DPoP；Auth broker持獨立`auth_intent_rpc_caller LOGIN NOINHERIT NOBYPASSRLS` SCRAM（只在其Secrets Manager、固定AWS egress），且只具`claim_auth_control_operation(operation_id, request_hash, binding_id, expected_generation)`與reconcile RPC的EXECUTE。broker先驗capability、DPoP method／normalized URL／body SHA／timestamp／nonce／`jti`，再由DB RPC鎖定既有`auth_control_operations`、重驗action／target hash／expiry／runtime revision／membership或bootstrap assertion及binding generation，原子轉`queued → broker_claimed`並只回最小provider payload；remote Auth API成功／未知再走同operation saga。Preview、舊／revoked deployment、錯audience／body／key、caller自報action／target、已consume operation或未經DB授權的payload全拒絕；不得退回project-wide OIDC即具Auth權限，Auth broker也沒有private table、Vault、migration或其他RPC grant。
+   - Recovery mTLS certificate不得透過已要求client certificate的privileged gateway申請。另建隔離的`RecoveryCertificateEnrollment` server-TLS endpoint，套WAF與嚴格rate limit；其IAM只有讀釘住的custodian public keys、DynamoDB enrollment state及固定ACM Private CA client-auth template，沒有DB、Auth、provider、`recovery_assertion_hmac`或一般Secrets Manager權限。trusted workstation先在TPM／硬體裝置產生不可匯出的ephemeral TLS private key與PKCS#10 CSR；endpoint建立`pending` challenge並回傳256-bit nonce、enrollment ID、project ref、purpose、operation ID、gateway hostname與`expires_at≤5m`。兩位不同custodian以hardware Ed25519 key簽canonical manifest `{challenge, enrollment_id, csr_sha256, spki_thumbprint, project_ref, purpose, operation_id, issued_at, expires_at}`；workstation經server TLS提交CSR、manifest與2-of-3 signatures。endpoint驗CSR proof-of-possession、兩個不同且未撤銷的signer、CSR hash／SPKI、purpose／operation／expiry後，以DynamoDB conditional transition `pending → issued`原子consume nonce；服務端忽略caller要求的SAN／EKU，自行固定`clientAuth`、operation-bound SAN與15分鐘validity，只回certificate chain，private key永不離開workstation。
+   - 第一次尚無任何HMAC verifier時，`RecoveryTrustBootstrap.install_recovery_trust_v1`是唯一pre-HMAC entrypoint，且只掛在下述custom-domain gateway後：它要求上述operation-bound mTLS certificate與2-of-3 hardware Ed25519 manifest，manifest固定`purpose=recovery_hmac_v1`並綁project ref、`trust-bootstrap-v1.sql` digest、後續`initial_schema_bootstrap`／migration完整digest、operation ID、nonce及≤5分鐘expiry；gateway直接用釘住的custodian public keys驗簽，不以尚不存在的HMAC驗自己。DynamoDB以conditional state machine `unprovisioned → material_pending → aws_written → package_persisted → db_written → fixture_verified → active`單次consume trust generation；winner由project ref＋generation推導不可變create-only Secrets Manager **Name**與符合格式的`ClientRequestToken`／VersionId，不假設可在建立前知道帶隨機六字元suffix的完整ARN。TrustBootstrap role的IAM只允許該deterministic Name所對應的ARN suffix pattern與指定KMS key／resource tags；它先以exact Name做`DescribeSecret`，不存在時才用AWS KMS `GenerateRandom`產生256-bit HMAC v1並以該Name／token `CreateSecret`，不能overwrite、另選Name、列舉或讀其他secret。若create response遺失或暫時查不到，重試仍只查同一Name／token；`ResourceExistsException`後重新describe，驗KMS key、project／generation tags與version，絕不建立第二Name。取得AWS實際回傳的ARN＋VersionId後以DynamoDB conditional write固定保存，往後只讀該已存ARN／version的同一material。服務以`MigrationCredentialBroker`專用KMS public key封裝該精確version，並在delivery前以DynamoDB conditional create持久化HMAC fingerprint、sealed package ciphertext及ciphertext hash；重試只重送已存package，或在`aws_written`但尚無package時重讀同一secret version再封裝，絕不另生平行v1／v2。
+   - Broker只接受上述`package_persisted` record，把sealed package交給image內hash-pinned `trust-bootstrap-v1.sql`，經tenant-admin direct connection呼叫唯一`install_recovery_trust_v1` transaction，建立最小Vault／verifier objects、寫入同一v1並記錄fingerprint；runner、人員、Vercel、log與disk都看不到plaintext。這不是跨AWS／Postgres的假原子transaction：response遺失或DB write失敗時只依operation ID、generation、fixed secret ARN／version、fingerprint與固定test vector協調同一material；DB已commit但response遺失時先讀verifier metadata及跑fixture，不重寫新secret。只有AWS copy、persisted package、Vault copy及gateway→DB fixture全數一致才轉`active`；之後一般`initial_schema_bootstrap`才可使用HMAC assertion。任何partial state都保持privileged operations與commerce fail closed；後續版本才使用下述reader-before-writer rotation。
+   - 同一AWS operational account另有具體的`PrivilegedRecoveryGateway`：API Gateway custom domain開mutual TLS、truststore放versioned S3，並設定`disableExecuteApiEndpoint=true`，所以預設`*.execute-api.*.amazonaws.com` hostname不接受任何請求；Route 53／resource policy只允許釘住的custom domain到authorizer。authorizer除平台mTLS外，還核對certificate serial／SPKI、operation、purpose、expiry及DynamoDB `issued | active`狀態，certificate不得跨operation／purpose使用。後端Lambda持三個彼此分離的SCRAM secret，`bootstrap_rpc_caller`只EXECUTE一次性bootstrap RPC、`recovery_rpc_caller`只EXECUTE fail-close／Owner recovery RPC、`escrow_export_caller`只EXECUTE第20節key export RPC，皆無table／Auth／一般admin權限。gateway逐一用釘住fingerprint的hardware-key public key重驗2-of-3 Ed25519 signatures、client cert、manifest／nonce／expiry；每個privileged request仍須相符operation manifest，不能只憑certificate。除上述單次pre-HMAC trust bootstrap外，驗證成功後才以RecoveryTrustBootstrap已標`active`、AWS Secrets Manager中KMS加密且有Supabase Vault verify copy的versioned`recovery_assertion_hmac`簽一個一次性assertion，綁`key_version`、完整manifest hash、兩個signer key IDs、operation ID、nonce及≤5分鐘expiry。Postgres只用`pgcrypto.hmac`按version驗assertion並原子consume operation ID，**不宣稱Postgres本身可驗Ed25519**；broker亦重驗同version assertion／scope及DB intent。HMAC固定reader-before-writer：先把新verify version加入DB與broker並跑fixture、標記可讀，再把gateway write version切新；DB／broker同時接受current及所有draining previous versions，舊version要等其所有assertions過期且引用的Auth／escrow／recovery saga均terminal後才移除，partial failure不得回收。saga terminal、失敗或15分鐘到期即把certificate serial標`consumed | revoked`，後續請求由authorizer立即拒絕、不依賴CRL傳播；CloudTrail保存enrollment／signature／key-version／certificate驗證結果但不記secret或manifest PII。bootstrap完成即永久`NOLOGIN`該role，另兩role及HMAC每30天、gateway使用或custodian key事件後啟動上述輪替。trusted workstation不直接連Postgres，enrollment endpoint不能執行recovery action，所有mTLS privileged action皆以gateway custom domain為唯一終點。
+   - 所有bootstrap、invite、suspend、session revoke、password／MFA recovery與credential rotation都建模為可恢復的Auth saga，不宣稱跨Auth API／Postgres原子：一般操作由BFF以recent AAL2、CSRF、membership及action scope建立`auth_control_operations`與provisional inactive membership；broker只處理由上述DB claim RPC原子轉成`broker_claimed`的operation，再以stable operation ID／request hash及compare-and-set走 `broker_claimed → in_flight → remote_applied | unknown → reconciled_succeeded | reconciled_failed | manual_review`。invite／recovery Email只寄LIGNÉE高熵、hash-at-rest、單次／短效exchange token至`/admin/auth/exchange#token=...`並記錄Resend queued／delivered／bounced／complained；該landing固定`Referrer-Policy: no-referrer`、`Cache-Control: no-store`、不載analytics／RSC prefetch／第三方資源，client只把fragment立即POST到same-origin BFF，隨即`history.replaceState`清URL並redirect。BFF原子consume local token後向broker取得Auth Admin `generateLink`產生的短效`hashed_token`與固定type（不把provider action URL給browser），再由same-origin server以Supabase Auth `verifyOtp` server-to-server兌換受限session、設定LIGNÉE HttpOnly cookie並redirect到精確`/admin` enrollment／recovery step。local token、hashed token與session不得進access／function／error log、RSC／router URL、referrer、Email tracking或client telemetry；重寄先失效舊local token，已產生的provider token只待短TTL且membership仍inactive／敏感command禁止。只有Auth user、delivery、必要factor、membership與audit全部完成才activate／恢復；partial success或response遺失保持inactive／commerce off並依operation ID reconcile。
+   - 零Owner bootstrap與兩位Owner全失聯是上述AAL2規則的兩個明確、不可泛化例外。三位獨立custodian各持hardware-backed Ed25519 recovery key，public keys釘在AWS gateway且其fingerprints釘在DB migration；2-of-3共同簽署manifest `{purpose, project_ref, two_exact_emails_or_targets, operation_id, nonce, issued_at, expires_at≤30m, exact_production_disabled_deployment_id, git_sha}`，經`PrivilegedRecoveryGateway`驗簽並轉為上述含`key_version`、DB-verifiable的一次性assertion。bootstrap要求active＋provisional Owner均為0、`bootstrap_generation`未使用，且第4節release controller已用Vercel API＋URL challenge建立的exact candidate `deployment_binding`匹配manifest並證明`COMMERCE_CAPABLE=false`；不把deployment ID／SHA當OIDC claim。DB驗assertion後原子consume nonce／寫intent，broker建立一筆只涵蓋該binding、兩個provisional Owner operation IDs及invite exchange的`bootstrap_allowed_deployment`，24小時／兩人activate／第一次不符任一條件即永久失效，不可呼叫其他Auth action。兩人activate後以正常AAL2核准該binding的Auth scope並永久關bootstrap role。recovery則不需deployment capability，只接受gateway mTLS＋2-of-3 manifest assertion，scope僅fail-close、撤銷session及恢復Owner access。DB與broker各自按key version驗assertion／scope／nonce／generation並再次consume operation ID；reconcile持久化assertion hash與version，使writer已輪替時仍能完成同一saga。此路徑不能讀PII、退款、發布、改價或開站，完成／失敗即撤銷certificate並輪替已用custodian keys。
+   - 內部主鍵使用隨機 UUID，時間一律 UTC `timestamptz`，金額一律非負整數 TWD；商務 ledger、provider event 與 audit event 禁止一般硬刪除。
+   - 公開 DTO 只輸出已發布內容、當前含稅價格、核准媒體及「有貨／少量／售罄」；不得輸出精確庫存、成本、草稿、供應商、顧客、管理員或內部識別碼。
 
-6. **生成並管理約 35 張原創影像**
-   - 生成 27 張商品主圖與 8 張莊園生活／篇章形象照，建立統一的攝影提示、色彩、鏡頭、服裝與人物規則。
-   - 人物以 30–55 歲的英國紳士與成熟女性為主，男女比例接近 1:1，呈現當代英國多元面貌；氣質自然、知性、有閱歷，不做成古裝、貴族扮裝或年輕網紅形象。
-   - 首頁與 Journal 約 60% 使用人物生活影像；商品列表與詳情約 40% 使用乾淨商品特寫。
-   - 商品詳情頁透過原圖的安全裁切、放大與版面組合提供視覺層次，不假裝不同裁切是不同商品角度。每張商品圖綁定一個 pictured SKU；選擇未拍攝的顏色不更換圖片，並顯示「影像為代表色」的可見與螢幕閱讀器提示。
-   - 建立 asset manifest：`id`、本地路徑、OpenAI 生成來源、prompt source／hash、生成日期、資產類型、depicted product／SKU、原始尺寸、顯示比例、焦點座標、alt、檔案大小與人工 QA 狀態。
-   - 商品圖目標 4:5、至少 1600×2000，輸出 WebP／AVIF 不超過 350 KB；篇章圖目標 3:2 或 16:9、長邊至少 2400 px、不超過 500 KB。手機 art direction 必須使用 manifest 內的安全焦點。
-   - 人工 QA 必須逐張確認：無真實人物參考或可辨識公眾人物、無第三方 Logo／商標、解剖與手部合理、商品結構可信、無生成文字、跨圖色彩一致、主要裁切不切斷人物臉部或商品；只有 `qaStatus: approved` 的資產可以被頁面引用。
+6. **建立 50 件同日首發的 deterministic catalog seed**
+   - 五大分類固定為：服飾 16、配件 10、居家生活 9、文具 5、網球運動 10；總數必須恰為 50。
+   - 五個篇章固定為：First Light in the Field 13、The Conservatory Hour 9、After Rain, the Library 11、Dinner at the Long Table 7、The Private Court 10。
+   - 下列價格皆為含稅 Sandbox 草案；正式售價仍須完成成本、供應鏈及約 65% 目標毛利驗證：
 
-7. **完成資訊架構與主要頁面**
-   - 首頁、全部商品、男裝、女裝、配件、居家、文具。
-   - 四個情境篇章列表與詳情。
-   - 商品詳情、搜尋結果、收藏、購物車與三步驟結帳。
-   - 訂單完成、品牌故事、Estate Journal 列表與四篇文章。
-   - `Private Appointment`、配送退換貨、隱私條款、使用條款與 404。
-   - 因定位已改為單一自有品牌，移除多品牌目錄與品牌詳情頁。
-   - 桌面與手機使用一致的分類模型；導覽在手機端保留清楚的搜尋、收藏與購物車入口。
+| # | 分類 | 商品 | 中文名稱 | 篇章 | 草案價 |
+|---:|---|---|---|---|---:|
+| 1 | 服飾 | Field House Polo | 田野會所 Polo 衫 | First Light | NT$7,800 |
+| 2 | 服飾 | Alder Oxford | 奧德牛津襯衫 | First Light | NT$8,800 |
+| 3 | 服飾 | Conservatory Knit | 溫室薄針織衫 | Conservatory | NT$9,800 |
+| 4 | 服飾 | Bracken Riding Blazer | 蕨徑騎裝西裝外套 | First Light | NT$28,800 |
+| 5 | 服飾 | Long Lawn Trousers | 長草坪西裝褲 | Conservatory | NT$13,800 |
+| 6 | 服飾 | Keeper Bermuda Shorts | 莊園守望百慕達短褲 | First Light | NT$8,800 |
+| 7 | 服飾 | Walled Garden Dress | 圍牆花園長洋裝 | Conservatory | NT$24,800 |
+| 8 | 服飾 | Hawthorn Trench | 山楂樹風衣 | First Light | NT$28,800 |
+| 9 | 服飾 | Moorland Wax Jacket | 荒原蠟棉獵裝外套 | First Light | NT$24,800 |
+| 10 | 服飾 | North Hall Overcoat | 北廳羊毛長大衣 | Library | NT$36,800 |
+| 11 | 服飾 | Morning Room Cardigan | 晨間室開襟針織衫 | Conservatory | NT$12,800 |
+| 12 | 服飾 | Orchard Roll-Neck | 果園高領針織衫 | First Light | NT$11,800 |
+| 13 | 服飾 | Estate Silk Blouse | 莊園絲質襯衫 | Conservatory | NT$9,800 |
+| 14 | 服飾 | Cedar Pleated Skirt | 雪松百褶中長裙 | Conservatory | NT$12,800 |
+| 15 | 服飾 | Paddock Waistcoat | 馬場人字紋背心 | First Light | NT$13,800 |
+| 16 | 服飾 | Garden Shirt Dress | 花園襯衫洋裝 | Conservatory | NT$22,800 |
+| 17 | 配件 | Bridle Line Belt | 韁繩線條皮帶 | First Light | NT$6,800 |
+| 18 | 配件 | Glasshouse Tote | 玻璃溫室托特包 | Conservatory | NT$16,800 |
+| 19 | 配件 | Estate Dispatch Briefcase | 莊園信差公事包 | Library | NT$32,000 |
+| 20 | 配件 | South Lawn Sunglasses | 南草坪太陽眼鏡 | First Light | NT$9,800 |
+| 21 | 配件 | Long Table Tie | 長桌領帶 | Dinner | NT$7,200 |
+| 22 | 配件 | Bridle Loafers | 馬銜扣樂福鞋 | First Light | NT$14,800 |
+| 23 | 配件 | Keeper Riding Boots | 莊園騎士長靴 | First Light | NT$18,800 |
+| 24 | 配件 | House Colours Silk Scarf | 家族色絲巾 | Conservatory | NT$6,800 |
+| 25 | 配件 | Ash Walking Umbrella | 梣木長柄傘 | Library | NT$8,800 |
+| 26 | 配件 | Signet Cufflinks | 印戒造型袖扣 | Dinner | NT$6,800 |
+| 27 | 居家 | Hearth No. 4 Candle | 四號壁爐香氛蠟燭 | Dinner | NT$3,200 |
+| 28 | 居家 | Wet Cedar Diffuser | 雨杉擴香 | Library | NT$4,800 |
+| 29 | 居家 | Stable Door Throw | 馬房門毛毯 | First Light | NT$12,800 |
+| 30 | 居家 | Breakfast Room Mug | 早餐室馬克杯 | Dinner | NT$2,200 |
+| 31 | 居家 | Library Service Tray | 藏書室木製托盤 | Library | NT$7,600 |
+| 32 | 居家 | Manor Table Linen | 莊園桌巾組 | Dinner | NT$8,800 |
+| 33 | 居家 | Long Hall Candlesticks | 長廳燭台 | Dinner | NT$12,800 |
+| 34 | 居家 | Drawing Room Cushion | 會客室羊毛靠墊 | Dinner | NT$6,800 |
+| 35 | 居家 | Library Bookends | 藏書室書擋 | Library | NT$7,600 |
+| 36 | 文具 | Estate Ledger Notebook | 莊園簿冊筆記本 | Library | NT$5,800 |
+| 37 | 文具 | Correspondence Pen | 書信原子筆 | Library | NT$3,800 |
+| 38 | 文具 | Valet Desk Tray | 管家桌面收納盤 | Library | NT$6,800 |
+| 39 | 文具 | House Correspondence Cards | 私人書信卡組 | Library | NT$2,200 |
+| 40 | 文具 | Brass Letter Opener | 黃銅拆信刀 | Library | NT$3,800 |
+| 41 | 網球 | Ash-Tone Tennis Racquet | 梣木色網球拍 | Private Court | NT$18,800 |
+| 42 | 網球 | Baseline Tennis Dress | 底線網球洋裝 | Private Court | NT$9,800 |
+| 43 | 網球 | Pavilion Pleated Skirt | 看台百褶網球裙 | Private Court | NT$7,800 |
+| 44 | 網球 | Match Point Cable Vest | 賽末點麻花針織背心 | Private Court | NT$8,800 |
+| 45 | 網球 | House Championship Tennis Balls | 家族錦標賽網球組 | Private Court | NT$2,800 |
+| 46 | 網球 | Bridle Leather Racquet Cover | 韁繩皮革球拍套 | Private Court | NT$9,800 |
+| 47 | 網球 | Clubhouse Tailored Shorts | 會所剪裁網球短褲 | Private Court | NT$7,800 |
+| 48 | 網球 | Centre Court Performance Polo | 中央球場機能 Polo 衫 | Private Court | NT$7,800 |
+| 49 | 網球 | Centre Line Court Shoes | 中線網球鞋 | Private Court | NT$12,800 |
+| 50 | 網球 | Clubhouse Racquet Tote | 會所球拍托特包 | Private Court | NT$16,800 |
 
-8. **設計編輯式首頁與內容語氣**
-   - 首屏以品牌、標語與當代莊園形象建立世界，不用優惠訊息搶占視覺焦點。
-   - 首頁依四個篇章展開，穿插精選商品、品牌信念、材質／保養價值與 Estate Journal。
-   - 主要購物資訊用繁體中文；系列、商品與形象標題可保留英文並附中文說明。第一版不做完整語言切換。
-   - 文案克制、知性、帶文學感，使用觸感、場景、時間與細節表達價值，避免反覆自稱「頂級、尊榮、奢華」。
-   - 不使用折扣標籤、促銷碼、倒數計時或限時特價。
+   - 現有 Rain Ledger Watch、Evening Sheer Tights、Dewdrop Earrings、Guest Wing Bed Linen、Long Table Glasses、Conservatory Stem Vase、Estate Almanac 改為 `archived`；Heirloom Portrait Frame、Library Pocket Square、Foxglove Leather Gloves 不建立公開種子。
+   - 移出品不得出現在公開 route、搜尋、相關商品、sitemap 或 JSON-LD；重建目前所有指向它們的相關商品與編輯內容。
+   - 新增 `/tennis`、`/collections/the-private-court` 與 Journal `The Measure of a Grass Court｜草地球場的分寸`。
 
-9. **完成商品發現與商品詳情體驗**
-   - 提供關鍵字搜尋，以及類別、性別／適用對象、價格、顏色、概念材質與系列篩選；顯示有效篩選、結果數、清除與無結果狀態。
-   - 查詢狀態以 URL 為 canonical source：`q`、重複的 `category`／`audience`／`collection`／`color`／`material`、整數 `min`／`max` 與單值 `sort`。同一 facet 內為 OR，不同 facet 間為 AND；價格上下限皆包含邊界。
-   - 搜尋字串以 Unicode NFKD、移除 combining marks、trim、lowercase 與空白 token 化；每個 token 都必須命中名稱、繁中副名、類別、系列或敘事 searchable text。無效或未知參數被忽略並在下一次互動時 canonicalize；多值依固定順序輸出。
-   - 所有 query mutation 只能經過單一 `CatalogQueryCoordinator`：它持有最新 draft state，以一次 atomic serialization 更新完整 query。搜尋輸入採 200 ms debounce；任何 facet／sort／price 立即更新都先取消舊 debounce，再以最新 draft 排程搜尋，並以 sequence token 丟棄過期 callback，避免快速混合操作覆蓋彼此。
-   - 篩選互動最終以 `router.replace(..., { scroll: false })` 提交；重新整理、分享網址、上一頁／下一頁必須重現相同結果與控制項狀態。只有 pathname／document 導航後才把焦點移至主標題；純 query 更新保持目前控制項焦點並透過 polite live region 宣告新結果數。單元與 E2E 測試需包含快速輸入搜尋同時切換多個 facet／sort 的順序組合。
-   - 商品卡顯示名稱、類別／系列、價格與可選色彩提示；快速加入只在規格已明確時可用。
-   - 商品頁內容順序為：一句傳承敘事、影像、價格與規格選擇、材質與剪裁／用途、尺寸或容量、保養、概念規格告知、配送退換貨、搭配商品。
-   - 尺寸或必要規格未選時不得加入購物車，並提供可理解的欄位錯誤提示。
+7. **建立 SKU、版本價格、媒體與 50/50 發布閘門**
+   - `products` 使用不可重用 `product_code`、唯一 slug 與 `draft | review | ready | published | archived`；`product_variants` 使用不可重用 `sku_code`，所有顏色、尺寸、容量、香氣或表面組合都必須明確列舉。
+   - 服飾資料模型支援 XXS–XXL，但只啟用完成打樣、量測與備貨的尺寸；每件商品有獨立成衣平量、版型、模特兒身高與穿著尺寸。
+   - 鞋款使用實際鞋楦驗證後的 EU 尺碼；皮帶使用公分；球拍需記錄重量、平衡點、拍面、長度、握把與穿線；居家／文具使用實際公分、容量、數量與重量。
+   - 每個 SKU 保存含稅整數價格、有效期間、重量、包裝長寬高、媒體、啟用狀態與庫存；商品封存或改價不得改寫歷史 order item snapshot。
+   - 建立 `release_batches` 與包含全部 50 件的 `Estate No. 01` batch。只有 50 件全達 `ready` 才能在同一 transaction 發布；任一件未就緒就不得把其餘 49 件先正式上線。
+   - 每件 `ready` 必須通過：實物／供應商、成本／毛利／含稅售價、材質、產地、製造或委製、尺寸／容量／重量、保養／警語、SKU、包裝、可售庫存、準確商品照片、運送／退貨／保固／Care & Repair、法律與商標審核。
+   - Public media publish必須先有第4節Object Lock backup ack，再由人工QA把asset單調推至`live_approved`並由50/50 gate核對每個required role／variant。緊急撤銷固定為：建立含reason、affected SHA／variants與expected revision的immutable intent；先append Edge tombstone、提高`media_safety_revision`並取得ack；再purge所有public／internal cache key與任何legacy `/_next/image` derivative並保存provider ack；最後在一個DB transaction append `live_approved → revocation_pending → revoked` transition events並把asset設`revoked`、移除catalog／PDP／分類／Journal／SEO／OG／JSON-LD及尚未寄出的Email引用、必要媒體不完整時停用受影響SKU／batch、寫audit與invalidation outbox。任一步unknown／失敗都保持Edge tombstone與`media_emergency_no_cache=true`；同SHA永不重新開啟，只能以新bytes／新SHA走完整QA／publish。
+   - 太陽眼鏡 UV、香氛／蠟燭、食品接觸器皿、網球拍、球鞋、網球等需有相應安全／性能證據。
+   - `Silk`、`Leather`、`Brass`、`Wax`、`Performance`、`Riding` 等暫名在材質或功能未證實前只能存在 Sandbox；不符合供應鏈結果時必須在發布前更名。
+   - 顧客端只顯示「有貨／少量／售罄」，不顯示精確數量、不製造假稀缺；V1 不提供預購、候補或到貨通知。
 
-10. **完成模擬商務流程**
-    - 購物車支援加入、刪除、數量 1–9、規格顯示、價格小計、運費提示與瀏覽器持久化。儲存格式為 `{ version: 1, lines: [{ skuId, quantity }] }`；Zod 驗證失敗、未知 SKU 或無效數量時安全捨棄該行並顯示非阻塞提示。
-    - SSR 使用空的 server snapshot；購物車數量與收藏在 client hydration 完成前顯示中性 placeholder，避免 mismatch 或錯誤閃爍。所有價格由 catalog 重算，不信任 storage 內任何舊值。
-    - 同一 SKU 合併成一行；跨分頁透過 `storage` event 同步，採最後一次有效寫入為準。`localStorage` 不可用時退化為當次記憶體狀態，購物流程仍可使用。
-    - 配送範圍先設定為台灣本島與離島；滿 NT$12,000 免運，未滿收 NT$250；國際配送標示為尚未開放。
-    - 結帳使用明確路由 `/checkout` 與 `/checkout/complete`，兩者共享只存在記憶體的 checkout-layout provider。`/checkout` 內的三步驟 guarded state machine 為 `details → payment-demo → review`；空購物車或跳過步驟時導回購物車／details，重新整理會清除聯絡與地址並回到 details，上一頁不重複提交。
-    - 聯絡與地址欄位預填明顯虛構的 `.invalid` 範例，關閉 autocomplete，欄位上方固定警告「請勿輸入真實個資」；值只存在 React memory，不寫入 URL、storage、cookie、log 或 analytics。
-    - 付款頁僅顯示「信用卡（正式版規劃）」與「Apple Pay（正式版規劃）」的靜態示意，不使用官方 Apple Pay 按鈕、不要求卡號、不載入 Apple Payment API，也不暗示 merchant validation 已完成。
-    - 模擬提交採單次鎖定避免重複觸發，在 checkout-layout provider 將 eligibility 設為 `completed`、清空購物車，再導向 `/checkout/complete`；不使用 `sessionStorage`、不產生訂單編號。正常 client navigation 會保留 layout provider 並顯示完成狀態；直接開啟或重新整理完成頁時 provider 初始為 invalid，顯示「沒有真實訂單」與返回商店入口。回到 `/checkout` 時重設 eligibility。
-    - 提供到貨後 14 日退貨的品牌服務文案，同時保留台灣通訊交易法定權益；絲襪、耳環等可能涉及衛生商品的例外文字在正式上線前須經專業法律確認。
+8. **依 imagegen 技能生成、保存與審核 150＋8 張影像**
+   - 使用內建 `image_gen`，每個 distinct asset 單獨一個 prompt／call；先生成並固定 4 位 30–55 歲男性、4 位 30–55 歲女性人物基準照，再把本地基準檔作為後續 identity reference。
+   - 第一輪公開資產固定為：
+     - 50 件商品主圖 50 張。
+     - 50 件商品細節／情境圖 50 張。
+     - 一般莊園穿搭：男 8、女 8、雙人／小型聚會 8，共 24 張。
+     - 私人草地網球場穿搭：男 4、女 4、混合雙人 4，共 12 張；其中一張兼作 The Private Court 篇章 hero。
+     - 五大分類桌機寬幅＋手機直幅，共 10 張。
+     - 田野、溫室、藏書室、長桌四張故事 hero。
+     - 公開合計 150；另有 8 張內部人物基準照。
+   - 場景使用當代馬房、藏書室、溫室、長桌、雨後田野、鄉間步行、私人草地球場與會所；不做古裝、皇室扮演、年輕網紅、名人或職業球星模仿。
+   - 前台文案不使用「虛構、想像、世界觀、角色設定」等說破沉浸感的字眼；同時不宣稱莊園真實地址、可參觀、品牌總部、創辦家族、英國製造地、貴族／皇家關係或不存在的歷史。
+   - 每張圖檢查自然皮膚與年齡、手部／解剖、跨圖面貌、服裝與商品一致性、文字／浮水印、第三方 Logo、商品結構與裁切；網球圖另驗證握拍、擊球、拍線、球網、場線、鞋底與球體位置。
+   - 擴充 asset manifest：穩定 ID／版本、source、visibility、role、status、SHA-256、來源 master、WebP／AVIF、產品／SKU／分類／篇章／人物 reference、尺寸、比例、焦點、繁中 alt、prompt audit、權利資訊與逐項 QA。
+   - 8 張人物基準照放私有目錄／bucket，不得進 `/public`、sitemap 或公開 Storage；生成結果先保存到 workspace，再產生不覆寫舊檔的版本化輸出。
+   - 150 張是第一輪基線，不是每色完整攝影。Sandbox 可用生成商品圖；正式商品卡、PDP、色票與直接標記 SKU 的穿搭圖必須逐 SKU 對照實物核准。未有準確圖片的顏色不得啟用；需要更多顏色時補實拍或額外資產，不得用代表色誤導。
+   - 所有公開 final 產生響應式 WebP／AVIF、長寬與 focus metadata；只有 `live_approved` 可供正式商品頁引用。
 
-11. **加入高端服務與留存入口**
-    - **Letters from the Estate** 僅出現在首頁下方與頁尾，訴求季節選品、莊園來信與私人預覽；不使用彈窗或折扣交換信箱。
-    - **Private Appointment** 提供私人選品與送禮諮詢展示表單，並描述免費禮盒包裝與手寫卡片服務。
-    - 電子報與預約欄位使用 `.invalid` 範例與「請勿輸入真實資料」提示；提交只呈現前端成功狀態，不傳送、不持久化，且清楚標示預覽模式。
-    - 收藏持久化格式為 `{ version: 1, productIds: string[] }`；以 Zod 驗證、移除未知／重複 ID，採與購物車相同的 hydration gate、`storage` event 最後有效寫入同步及 storage 不可用時的記憶體 fallback。
+9. **完成五分類、五篇章與高端前台內容**
+   - 服飾導覽拆為男士、女士，並保留配件、居家生活、文具、網球運動；保留搜尋、篩選、排序、收藏、購物袋、Journal、Private Appointment、配送退貨、Care & Repair 與客服入口。
+   - `Alderwick House` 以「LIGNÉE 的品牌宅邸與生活篇章」呈現；英文可使用 `Welcome to Alderwick House` 等文學敘事，但不捏造可驗證的歷史或實體資訊。
+   - 全部可見中文字使用現有 LIGNÉE 明體系統；英文品牌、商品與篇章標題使用品牌襯線字。以完整內容 corpus 重新產生／驗證中文字型 subset，缺字測試失敗即不得 build。
+   - LIGNÉE 與 `Made to Be Inherited.` 保持主品牌；Care & Repair、保養資訊與可驗證品質支撐標語，但不宣稱終身保固、永久耐用或永久免費維修。
+   - 不使用折扣、促銷碼、倒數、虛構原價、會員價、評分或評論；唯一價格誘因是已鎖定的滿 NT$12,000 免標準運費。
+   - 網球視覺是私人草地球場與會所生活，不使用 Wimbledon、Grand Slam、職業聯盟、球星或其他受保護標誌。
 
-12. **完成品質、無障礙與預覽部署驗證**
-    - 目標 WCAG 2.2 AA：語意化 HTML、完整鍵盤操作、可見焦點、跳至內容、表單標籤／錯誤關聯、AA 對比、圖片 alt 與減少動態模式。
-    - 抽屜與 mobile filter 必須 focus trap、Escape 關閉並將焦點還給觸發器；色票有文字 label 與選取狀態；搜尋結果數與購物車更新用適量 live region；結帳驗證將焦點移至 error summary；只有 pathname／document 切換後焦點進入主標題，query-only 篩選更新不移動焦點。
-    - 原型 mode 預設在 root metadata 設 `noindex, nofollow, noarchive`，並由 Next.js headers 對所有路由送出 `X-Robots-Tag`；每頁保留 prototype banner。`noindex` 只降低索引風險、不作存取控制；有權限時另開 Vercel Deployment Protection。
-    - 預覽與 production 以每次 request nonce 套用精確 CSP baseline：`default-src 'self'; script-src 'self' 'nonce-{requestNonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'none'; upgrade-insecure-requests`。唯一 `unsafe-*` 例外是 Next／React 樣式所需的 `style-src 'unsafe-inline'`；禁止 wildcard、外部 origin 與 `unsafe-eval`。若框架不再需要該 style 例外，只能收緊不能放寬；任何新例外須在 `SECURITY.md` 寫出理由。
-    - 另送 `Referrer-Policy: no-referrer`、`X-Content-Type-Options: nosniff` 與 `Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()`。本機 dev 使用獨立 policy，只可額外允許 localhost HMR WebSocket 與開發工具需要的 `unsafe-eval`，不得帶入預覽／production。測試必須解析 CSP 並逐一比對 directive 值、禁止的 token 與外部 origin，而非只檢查 header 存在。
-    - 原型完全不輸出 Product／Offer JSON-LD；只有未來顯式的 production mode 且商品事實完成審核後才可啟用。一般頁面 metadata、Open Graph 圖與 favicon 仍可提供，但標示概念預覽。
-    - Vitest 覆蓋 pricing、運費邊界、搜尋 normalization／facet semantics、query coordinator 的取消／sequence／快速混合 mutation、cart reducer／migration／無效 storage、checkout guards；內容測試驗證所有 product、SKU、collection、asset 與 related ID。
-    - Playwright＋axe 至少覆蓋：首頁到完成頁、直接／重新整理受保護步驟、空購物車、NT$12,000 運費邊界、缺少規格、invalid storage、搜尋網址的 refresh／back、抽屜 focus restore 與鍵盤完成結帳。隱私測試允許同源 App Router／RSC 請求，但斷言任何 request／beacon／navigation 都不含表單值且沒有外部 origin；另驗證 `form-action 'none'` 與 CSP／安全 headers。
-    - 執行 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm test:e2e` 與 `pnpm build`；代表性 viewport 至少為 390×844、768×1024、1440×900。
-    - 效能驗收只對 production `pnpm build && pnpm start` 執行：Chrome／Lighthouse 固定版本、無 extension、cold cache、mobile 390×844、RTT 150 ms、throughput 1.6 Mbps、CPU slowdown 4×；每個代表頁跑三次並取 median。首頁 Performance ≥90、Accessibility ≥95、LCP ≤2.5 s、CLS ≤0.1、TBT ≤200 ms；TBT 是原型階段的 INP lab proxy，另由 Playwright 對搜尋、開抽屜與加入購物車量測 click/keypress 到可見 UI 更新 ≤200 ms。真實 INP 僅能在正式流量階段以 RUM 驗證，不宣稱本原型已證明。
-    - 每路由 first-load JS 目標 ≤180 KB gzip（Next runtime 另列），並遵守上述影像大小限制；效能報告記錄測試機、瀏覽器／Lighthouse 版本、命令、三次原始值與 median。
-    - 建立自動化 route manifest，對每個可到達的實際 route（包含 27 個商品、4 個篇章、4 篇 Journal 與所有靜態頁）在 390×844、768×1024、1440×900 擷取 full-page screenshot。人工逐張檢查 overflow、字體 fallback、截字、圖片焦點／裁切、視覺層級、間距、sticky／overlay 遮擋與空狀態，結果與重拍原因記錄於 `VISUAL-QA.md`；所有 route／viewport 均為 approved 才可交付。
-    - 先完成本機驗證，再用既有、已授權的 Vercel 專案／登入建立受保護預覽；不得建立或提交 secrets。若憑證或專案權限不可用，交付可重現的本機 build 與部署指令並把預覽 URL 標記為未完成，而不是改用其他帳戶或降低保護。
+10. **把購物袋升級為 server-authoritative 訪客結帳**
+   - 收藏在瀏覽器只存穩定 product ID；購物袋每列存 `{skuId, quantity, lastSeenPriceVersion, lastSeenUnitPriceTwd}`。後兩欄只是非權威的價格變更提示，不得參與計價；每次開啟購物袋與進入結帳都向伺服器重新取得目前價格、狀態與庫存等級。
+   - 價格、運費、稅額、庫存與可發布狀態一律由伺服器計算；瀏覽器傳來的名稱、價格、總額與庫存永不可信。
+   - 價格若在加入購物袋後改變，結帳前顯示舊／新差異並要求顧客確認；售罄或封存 SKU 從結帳移除但不靜默替換。
+   - 顧客確認時送回 server 提供的 current price version；order command 在 transaction 內再次比較，若期間又改價即回 `409 PRICE_CHANGED`、回傳新 snapshot 並要求重確認，不建立 reservation／payment attempt。
+   - 結帳只收：收件姓名、Email、台灣手機、郵遞區號、縣市、行政區、完整地址、發票選項；統編／公司抬頭只在公司發票時出現。建立任何庫存保留或provider payment attempt前，Email必須以10分鐘、一次性的六位數驗證碼完成possession verification。`email_otp_challenges`只存`HMAC-SHA-256(purpose || challenge_id || code)`、key version、issued／expires／consumed／invalidated時間與attempt counter，不存明碼；驗證在單一locked command以constant-time compare完成，成功原子consume，失敗原子累加，最多5次後失效。重寄會先失效同checkout／Email的舊code；每checkout／Email最多3次／30分鐘及10次／日、每日IP HMAC最多20次，驗證attempt另有distributed Email／IP／session cap，所有instance共用DB rate state且回應不洩漏Email是否存在。
+   - 可選訂單備註有明確字數限制與「勿填敏感資料」提醒；不收生日、身分證、性別、會員密碼、第二帳單地址。
+   - 台灣本島地址使用伺服器端郵遞區號／縣市／行政區 allowlist 驗證，明確拒絕澎湖、金門、連江及其他不在本島配送範圍的郵遞區號。
+   - 可勾選送禮並填最多 120 字祝福語；送禮包裹明細不顯示價格。V1 不拆單至多地址、不指定到貨日、不另售禮盒。
+   - 最終確認頁顯示商品、含稅價格、運費、總額、收件／發票資料、14日退貨摘要與條款。server render建立單調immutable `checkout_revision`，其digest綁定SKU／quantity、price versions／含稅總額、shipment plan、verified Email challenge ID、加密contact／shipping／invoice record versions、gift、legal document IDs／hashes／`legal_bundle_revision`及當下safety revision，再回傳至少256-bit、短效、single-use opaque confirmation token；DB只存token hash、digest、expires／consumed時間。建立order時同一transaction鎖定session、重算並比對完整digest、原子consume token且唯一綁一個order；同Idempotency-Key重試只回放該order，其他重用回`409 TOKEN_CONSUMED`。期間改價、資料／物流／Email或法律切版各回對應`409`並要求重新render／勾選，不接受client自行送舊IDs，也不以cache作寬限。
+
+11. **以資料庫 transaction 建立訂單與 20 分鐘庫存保留**
+   - 核心表包含 `checkout_sessions`、`orders`、不可變 `order_items`與`order_item_units`、分離且加密的 contact／shipping／invoice 資料、`order_consents`、`order_gifts`、`order_status_events` 與 hashed `order_access_tokens`。結帳最多10件，因此每個售出實體在order snapshot transaction展開一筆`order_item_units(order_item_id, unit_ordinal, sku_id, gross_twd, net_twd, tax_twd, invoice_line_key)`；同一line的units精確加總回該`order_items`含稅／未稅／稅額且之後不可改寫。原始運費另存immutable `shipping_gross_twd | shipping_net_twd | shipping_tax_twd`及invoice line key。
+   - 訂單使用內部 UUID、不可推測的公開 ID 與受綠界格式限制的獨立 `merchant_trade_no`；不得暴露資料庫流水號或把公開訂單號當驗證憑證。
+   - append-only `inventory_movements` 是庫存事實來源，`on_hand`、`reserved`、`safety_stock` 是同transaction更新的目前餘額；`available = on_hand - reserved - safety_stock`。所有收貨、調整、保留、釋放、銷售、取消回庫、退回與報廢只能經單一`apply_inventory_operation` command，在固定SKU row lock下以唯一operation key同時寫movement與餘額。reserve是`Δon_hand=0, Δreserved=+q`；release是`0, -q`；sale是`-q, -q`；pickup前取消且實物確認可售的`cancel_restock`及sellable return是`+q, 0`。movement row保存兩個delta及reservation／order reference，balance必須等於ledger加總。
+   - 資料庫強制 `on_hand >= 0`、`reserved >= 0`、`safety_stock >= 0`、`reserved + safety_stock <= on_hand`，movement／reservation quantity 必須為正整數；每 5 分鐘以 ledger、`active | release_pending` reservations 與餘額三方對帳，任何差異立即停新結帳並告警。
+   - 建立結帳時按固定 SKU 次序取得 row lock，在同一 transaction 內重算價格／稅／運費、驗證 Email、地址、shipment plan 與庫存、建立 order snapshot、建立顧客可見的 20 分鐘 initial reservation 與 payment attempt。
+   - 每個 checkout 最多 10 個不同 SKU、10 件商品、同一 SKU 最多 3 件；單筆金額上限為 NT$250,000 與已確認可承保／可配送總額兩者較低。每個已驗證 Email／browser session 同時最多 1 個、每個每日輪替 IP HMAC 最多 2 個 `active | release_pending` reservations；hard quota 永遠不能由 CAPTCHA 繞過，禁止靠開多分頁或進入 `release_pending` 後重複鎖貨。
+   - 每個 SKU 另有 launch-risk admission budget：同時 `active | release_pending` 預設不得超過 `max(1, floor(sellable_at_launch × 40%))`，過去 5 分鐘 reservation attempts 超過 `max(5, sellable_at_launch × 25%)` 或低轉換反覆到期時，後續請求先強制 challenge／短暫 queue；達 60% 異常 hold/churn 或超過配置 attack envelope 時，自動暫停該 SKU 新 reservation 10 分鐘、告警並可停全站 checkout。這些限制只控制未付款 hold，已付款銷售不受比例上限回退。
+   - reservation 狀態只允許 `active → consumed | release_pending | released` 與 `release_pending → consumed | released`；20 分鐘到達只原子轉 `release_pending`，庫存仍算 reserved。同一 reservation 最多 3 個「依序」payment attempts；資料庫 partial unique constraint 保證每張 order／reservation 同時最多一個 `created | redirect_ready | pending | verification_pending` 的 nonterminal／payable attempt。
+   - 建立 replacement attempt 必須先取得 order aggregate lock，且前一 attempt 已由 provider 查詢證明 terminal failed／cancelled／不可再付款；`TradeStatus=0`、本機逾時、關閉瀏覽器或單一 callback 都不足。所有 retry 沿用同一 order／reservation，但使用新的 merchant trade number。
+   - 20 分鐘是顧客顯示的 initial window，不得在 provider hosted payment 仍可能完成時單靠本機時鐘釋放。正式介接前必須由綠界以當前商戶合約／API 版本書面確認「信用卡／Apple Pay 可付款的最晚時間或可取消方式」；若無法取得 hard deadline／取消能力，live gate 失敗，改為保留到 provider terminal state 或更換付款架構後再由使用者核准。
+   - `payment_attempts` 保存 `customer_deadline_at`、`provider_payable_until`、provider-confirmed `callback_grace_interval` 與 `reconcile_after`；超過 customer deadline 不得重產導轉表單或建立新 attempt。安全釋放時間是同一 reservation 全部 attempts 的 `max(provider_payable_until + callback_grace_interval)`；grace 也必須來自當期合約／書面技術確認，不自行寫死分鐘數。
+   - 到initial window時，sweeper先鎖定order／reservation並逐筆查詢全部attempts；`TradeStatus=0`只代表查詢當下未付款，不是終局。只有所有attempts均被provider證明terminal unpaid，或全部超過各自safe-release time且再次查詢仍未付款，才可原子釋放；任何`succeeded_applied | succeeded_duplicate | pending | verification_pending | unknown`都阻擋釋放。超過bounded window仍unknown時轉`payment_reconciliation_exception`、庫存quarantine並停該SKU／checkout供人工處理，不靜默釋放或無限新增attempt。
+   - 付款經QueryTradeInfo確認成功時，`active | release_pending` reservation只可原子轉唯一terminal state `consumed`，並以同一transaction寫sale movement（`Δon_hand=-q, Δreserved=-q`）；`sale`不是reservation state。正常設計不得把已知可付款的attempt提前釋放；若charge在reservation已`released`／order已`cancelled_unpaid`後才確認，使用第12節明確的`succeeded_after_release | paid_after_release`分支，不重扣庫存／開票／履約；其他無法歸類的外部矛盾才進`paid_exception`。兩者都立即告警，禁止負庫存、靜默取消或遺失receipt。
+   - 訂單、付款、庫存、物流、發票、退貨與退款各自維護狀態，顧客看到的 `awaiting_payment → paid → processing → shipped → delivered → closed` 只是投影；所有轉移只能經 command function，不允許任意 UPDATE。
+   - 商品小計滿 NT$12,000 運費 NT$0，否則 NT$250；運費與商品價均含稅。使用單一資料庫函式只在下單時從含稅總額反推未稅額與 5% 稅額，先依固定`order_item_id`配置line residual，再依`unit_ordinal`配置unit residual；運費獨立配置。退貨、取消、退款、折讓永遠加總原始unit／shipping snapshot，不對子集合重算5%或重新分配尾差；演算法與會計師核准結果是live gate。
+
+12. **串接綠界全方位金流導轉式信用卡與 Apple Pay**
+   - 顧客在 LIGNÉE 只選「信用卡／Apple Pay」，伺服器建立綠界導轉表單後離站付款；LIGNÉE 不收、不傳、不記錄卡號、效期、末三碼或 Apple Pay token。
+   - 依綠界全方位金流官方規格使用 hosted redirect；`ChoosePayment=Credit` 時只允許一次付清與官方同步提供的 Apple Pay，明確排除分期、ATM、CVS、Barcode、TWQR、BNPL、COD。
+   - Apple Pay 是否允許由 runtime control `ecpay_apple_pay_enabled` 控制。關閉時即使 `ChoosePayment=Credit` 也必須依綠界當前契約送出並 contract-test `IgnorePayment=ApplePay`，不得只藏 LIGNÉE 文案；開啟時才移除該排除值，並驗證商戶能力、正式網域、支援裝置與實際 provider payload。
+   - payment attempt狀態為`created → redirect_ready → pending → verification_pending → succeeded_applied | succeeded_duplicate | succeeded_after_release`，另有locally-closed `failed | cancelled | expired`、非payable的`superseded_reconciling → superseded_unpaid | succeeded_duplicate`及`exception`；只有符合第11節replacement條件才可建立新attempt，交易編號不可重用。`payment_receipts`是扣款事實的authoritative append-only ledger，以provider trade number／amount保存每一筆QueryTradeInfo確認的charge；`orders.applied_payment_receipt_id`每order最多一筆，其他confirmed charge分成`duplicate_paid`或`paid_after_release`，不能被attempt狀態丟掉。
+   - 瀏覽器return URL永遠沒有付款授權力，只顯示「確認中」並重查站內狀態。server callback經CheckMacValue、Merchant ID、交易編號、金額與必要欄位驗證後durable保存event及獨立`payment_verification_requested` marker並排query job；只有原狀態仍為`created | redirect_ready | pending`時才CAS成`verification_pending`，已`failed | cancelled | expired`或任何success terminal都不因callback倒退／覆寫。callback本身仍不能標記付款成功。
+   - query worker必須再呼叫ECPay QueryTradeInfo；完整匹配`TradeStatus=1`時先在order lock下無條件保存receipt，再按目前aggregate分支。若attempt先前是`failed | cancelled | expired`，只有這份authenticated QueryTradeInfo成功證據可走顯式`provider_success_override` edge到下述success state；同transaction在append-only transition event保存prior state、query evidence hash、provider timestamps及contract-violation incident，且立即停新checkout。若已有另一applied receipt，標`succeeded_duplicate | duplicate_paid`，不動inventory／invoice／fulfillment。若reservation仍`active | release_pending`且無applied receipt，才設定`succeeded_applied`、`applied_payment_receipt_id`、reservation`consumed`與sale movement；同transaction把該order其他`created | redirect_ready | pending | verification_pending` attempt轉為非payable`superseded_reconciling`、撤銷尚未render的form nonce並排優先query／provider cancel。已在顧客瀏覽器開啟的hosted page無法假裝撤回；若之後仍charge就保存第二receipt並走`duplicate_receipt`精確全額退款，若取得terminal-unpaid證據則轉`superseded_unpaid`。無取消intent走paid＋唯一invoice／fulfillment，已有`cancel_requested`走`paid_cancel_requested`且只排第15節saga。若reservation已`released`或order已`cancelled_unpaid`，標`succeeded_after_release | paid_after_release`，**不得做`released → consumed`、sale、一般invoice或fulfillment**，並同樣將其他attempt改為reconcile-only，只排provider-anomaly退款與accounting incident。query unavailable、`TradeStatus=0`或欄位不一致維持pending／exception；任何其他caller都不能覆寫locally-closed state。
+   - `provider_anomaly_refund_principal`是Owner-only退款的唯一machine例外，且只有兩種DB枚舉原因：`duplicate_receipt`或`paid_after_release`。它不能接browser／staff提供的amount／receipt，只可由guard挑選QueryTradeInfo-confirmed、尚無refund operation且符合上述aggregate證據的receipt，原路退**該receipt精確全額**並以receipt ID作唯一key；不能碰正常applied receipt、部分退款、跨order或人工選定交易。第一筆任一anomaly立即停新checkout；provider結果unknown依第19節reconcile，成功／失敗都通知兩位Owner並留audit；predicate不全就進Owner manual review。
+   - 三種success terminal都單調，晚到失敗／取消不得降級；重送event只回放同receipt／refund operation，不得重複扣庫存、開票、履約、退款或寄信。每日provider report逐筆對到所有receipts，不能只對`applied_payment_receipt_id`。
+   - Chargeback或收單端reversal不改寫原capture成功事實。新增`provider_disputes`：chargeback case只允許`detected → evidence_pending → evidence_submitted → provider_review → won | lost | accepted | deadline_missed | manual_review`；另有獨立funding projection `none → accept_requested → accepted_pending_debit → debit_confirmed | no_debit_terminal → recredited`，所以case terminal不等於資金已扣。merchant accept遠端成功只到`accepted_pending_debit`，必須有authenticated debit report才到`debit_confirmed`；provider明確rejected／won或書面terminal no-debit證據才到`no_debit_terminal`。不可爭議reversal只允許`detected → verification_pending → confirmed_reversed | rejected | unknown | manual_review`。append-only `payment_adjustment_entries`保存`chargeback_debit | chargeback_recredit | provider_reversal_debit | provider_recredit`，provider fee另進營運費用ledger，不計入顧客退款、order total或發票。每筆以provider case／event ID＋normalized fingerprint冪等保存receipt、TWD amount、reason、evidence hash、provider effective／received time、`response_due_at`與outcome；亂序recredit可先保存為unmatched待reconcile，不能丟棄或把receipt降成failed。
+   - `effective_customer_recovery = confirmed refunds + confirmed chargeback／reversal debits - confirmed recredits`。每案`confirmed_unrecredited_debit = max(debits - recredits, 0)`；對仍可能發生provider debit的reserve-bearing case（所有open states，以及funding=`accept_requested | accepted_pending_debit`，或`deadline_missed | manual_review`尚無authenticated terminal no-debit evidence），`open_dispute_reserve = max(disputed_amount - confirmed_unrecredited_debit - active_statutory_priority_release, 0)`。因此provider只回case「accepted」而funding尚無debit證據時不會提早釋放reserve。每筆append-only `statutory_priority_releases`以`(provider_dispute_id, customer_credit_id)`唯一，在receipt／case／credit lock下限制`amount ≤ min(該credit尚未由refund或debit涵蓋的餘額, 該case尚未釋放／配置的open reserve)`，所以併發settlement不能超放。receipt budget使用量為所有succeeded／仍可能成功refund claims、confirmed unrecredited debits及各案open reserve之和；除第15節已到priority deadline的精確release外，新refund只能用剩餘額度。refund後又chargeback、partial debit或外部事件使recovery超過capture時，先保存provider事實，再建立`over_recovery_exception`、凍結相關新claim並由evidence／會計lane收斂，不能拒收event。`duplicate_receipt | paid_after_release`若已full debit／confirmed reversal，machine anomaly refund不得再送；dispute open時等待outcome，只有recredit後且額度恢復才可重取同一guarded refund operation。Chargeback本身不是refund API operation，不能觸發第二次退款。
+   - append-only `dispute_recovery_allocations`把已accepted的unit／shipping customer credit逐分配置到同receipt尚未被配置的`confirmed_unrecredited_debit`；同一credit amount只能被一個active allocation涵蓋。後續recredit transaction在receipt／dispute／settlement lock下append allocation-release entry，原子建立唯一`refund_shortfall:{allocation_id}:{recredit_entry_id}`及refund outbox，精確補回先前因該debit少退的差額；若另一refund仍可能成功，shortfall先保留budget等待reconcile，不得double pay。故won／recredit不只改dispute狀態，也不能留下已accepted return或cancellation少退款。
+   - Accepted取消／退貨不得被open dispute無限期卡住。每個customer credit在commit時依律師核准矩陣凍結不可延後的`customer_refund_due_at`與更早的`refund_priority_at = customer_refund_due_at - provider_refund_safety_window`。若provider有可驗證的merchant acceptance／close操作，V1只送case-level full acceptance，Owner在deadline前用全case唯一`accept_dispute:{case_id}`操作；同case後續settlement只能關聯／reconcile該operation，不能再送一次。若provider只有partial acceptance，V1不呼叫它而直接保留reserve至下述priority branch，除非另以plan／ADR加入provider amount/version及累計上限guard。只有authenticated dispute channel或正式debit report確認debit後才建立上述allocation，`in_flight | unknown`仍占reserve並持續reconcile。到`refund_priority_at`仍沒有足額confirmed debit時，receipt／dispute／settlement同一transaction先配置已有debit，再建立上述唯一`statutory_priority_releases` entry，只釋放本customer credit剩餘額所占的open reserve並建立同額唯一refund claim／outbox；不支援accept API、accept失敗或結果unknown都走同一deadline branch，不能等待dispute terminal。該internal release不偽造provider case已關閉，evidence與對帳照常。
+   - Priority refund送出後若晚到debit，依refund operation的authenticated outcome收斂：`in_flight | unknown`時不得新增allocation或另一refund，先凍結該credit並reconcile；若refund `succeeded`，保留既有顧客退款、append debit及`over_recovery_exception`，只追provider recredit／會計處理，不向顧客追回；若取得documented terminal-not-applied證據，才在同一lock transaction把debit配置到該credit，並只對`customer_credit - confirmed debit allocation - other confirmed refund`的正餘額建立下一個唯一refund claim。後續recredit依當時所有active debit allocations與confirmed／still-possible refunds原子釋放allocation並只建精確shortfall，不能假設原refund成功或失敗。這允許外部晚到debit造成暫時over-recovery，但系統不得自行重送相同refund、少付已核准credit，或把到期退款無限延後；refund provider本身unknown仍以同operation reconcile及P0告警，不得另送新key。
+   - Live gate必須從綠界／收單端取得實際notification／report channel、case ID、可爭議狀態、evidence格式、debit／recredit語意與response deadline，並版本化成provider policy；缺`response_due_at`、無法驗證或已逾期即P0。每案另計提早的`internal_due_at`；至少每小時掃open disputes、每日對帳debit／recredit report並用獨立dead-man。只能由recent-AAL2 Owner以provider portal case ID、遮蔽evidence hash及submitted_at記錄人工送件，不能手改財務ledger。
+   - 每個 callback 先保存遮蔽後 provider event、canonical fingerprint 與驗證結果，在 domain transaction durable commit 後才回傳綠界要求的成功確認。
+   - 退款走綠界API；只有provider確認成功後顧客端才顯示已退款。支付／退款查詢與每日交易報表納入對帳；未收到結果時按綠界官方建議在付款後10分鐘查詢，仍為未付款／銀行未回覆則間隔後再查，最晚至少覆蓋官方建議的40分鐘確認點，不用20分鐘本機逾時猜測付款結果。
+   - 所有callback、sweeper及manual reconcile的QueryTradeInfo共用每Merchant ID的durable token bucket、bounded concurrency與優先queue；正式速率／burst上限取「綠界書面限制」與Sandbox rehearsal安全值的較小者，未取得就不能live。worker使用full-jitter exponential backoff；HTTP 403／throttle達門檻立即開provider circuit、保留所有reservation、標記`reconciliation_delayed`並告警，不把throttle解讀為未付款。若`oldest runnable query`或依token rate計算的drain time會碰到最早provider-safe deadline／既有SLA，incident principal先停新checkout，直到backlog回到安全水位；既有callback與對帳仍保有最高優先額度。
+   - 實作依當時官方文件及 2025-04-01 後信用卡同步 Apple Pay 的規格建立 contract fixtures；正式 Apple Pay 若測試環境無法完整驗證，需以受控低額真實訂單與立即退款作最後 launch test。
+
+13. **付款後可靠地開立綠界 B2C 電子發票**
+   - V1 固定為無紙本並支援四種經 server 驗證的選項：
+     - 個人／綠界電子發票載具：`Donation=0`、無統編、`CarrierType=1`、`Print=0`，固定以已驗證 Email 建立載具。
+     - 手機條碼：`Donation=0`、無統編、`CarrierType=3`、`Print=0`，先以官方 API／格式驗證載具。
+     - 捐贈：`Donation=1`、無統編、`Print=0`，先驗證 `LoveCode`，不得同時送公司統編。
+     - 公司發票：八碼 `CustomerIdentifier`、對應公司抬頭、`Donation=0`、`Print=0`，且必須選 `CarrierType=1` 或 `3`；不得送無載具的 paperless 公司發票。
+   - 將當前 ECPay MIG 版本的 `Donation × CustomerIdentifier × CarrierType × CarrierNum × Print × CustomerName × CustomerAddr` 相容矩陣編成 server schema 與 contract fixtures。若商戶帳號／API 版本不接受上述無紙本公司路徑，就停用公司發票並阻擋 live，不暗改成 `Print=1`；V1 不為此新增第二帳單地址或紙本寄送。
+   - 只有QueryTradeInfo完整匹配、首次提交`succeeded_applied`／`applied_payment_receipt_id`／sale movement，且order沒有`cancel_requested`時，該domain transaction才可由outbox建立唯一一般`pending_issue`；已有取消intent則由第15節accounting saga依會計時點決定issue後void／allowance或合法的未開立路徑，不能由普通worker搶先claim。`succeeded_duplicate`、callback、return page與未核對event都不能排開票。一般狀態為`pending_issue → issuing → issued | issue_failed`。
+   - 發票 issue 失敗不否定已付款訂單；案件進 `invoice_pending`／incident queue，背景重試並通知 Owner。
+   - 全額退款依實際會計時點執行作廢或全額折讓；部分退款建立 allowance；發票 API 成功後才更新對外狀態。
+   - 同一訂單不得存在兩張有效主發票；發票 relate number、provider operation key 與 allowance 唯一且不可重用。
+   - Dispute accounting是與evidence、資金及一般refund分離的lane：`pending → no_action_required | not_issued_closed | voided | allowance_issued | corrective_review | manual_review`。Open／provisional dispute不自行作廢或折讓；terminal debit／confirmed reversal才按會計師核准矩陣調整，invoice provider outage不得阻擋evidence deadline。退貨驗收仍按完整accepted unit snapshot建立invoice allowance；財務settlement先以第12節immutable `dispute_recovery_allocations`配置同receipt confirmed unrecredited debit，再只對剩餘accepted credit建立refund；recredit會釋放allocation並自動建立精確shortfall refund，避免double recovery也不留下少退款或縮小發票折讓。
+   - 正式上線前必須完成綠界電子發票商戶開通、字軌／配號、測試發票與作廢／折讓演練，並由台灣會計師確認稅額、捨入與保存方式。
+
+14. **串接綠界物流的黑貓常溫宅配與逆物流**
+   - 只提供台灣本島黑貓常溫到府；不提供超商取貨、中華郵政、離島、COD、指定日期／時段或急件。
+   - 在建立 reservation／payment attempt 前，以版本化 `carrier_service_profiles` 與每個 SKU 的實際重量、包裝尺寸、品類及申報價值產生 immutable `shipment_plan`：完成 cartonization、包裹數、各包重量／材積、常溫／禁運品、地址、申報價值、承保／賠償上限檢查，並建立immutable `parcel_units(parcel_id, order_item_unit_id)`；database constraint保證每個售出unit恰屬同order的一個outbound parcel，不可缺漏、重複或跨order。
+   - 最多拆成 3 個 outbound parcels；顧客整筆訂單仍只付一次 NT$250 或符合免運，額外包裹成本由 LIGNÉE 承擔，每包各有追蹤碼。任一包超過正式黑貓／綠界合約的重量、尺寸、品類或可承保價值，或整單超過可安全賠付範圍，付款前即拒絕並轉人工協助；不得先收款再發現不可寄。
+   - 運送遺失／損壞時，LIGNÉE 依對顧客的交易義務先處理退款或補救，carrier compensation 是品牌內部追償，不把承運商賠償上限轉嫁為顧客權利上限。正式限制值、保價／保險與多包裹能力須以簽約文件建立 profile 才能 live。
+   - 只有`succeeded_applied`且沒有cancel intent的order進`paid`／fulfillment；Fulfillment理貨並標記ready時才建立黑貓託運單。`paid_cancel_requested`與production canary永遠不claim shipment，避免付款即產生不可用物流單。
+   - Dispute／reversal在新shipment claim前被偵測時，原子標`payment_at_risk`並freeze整單新invoice／shipment claim；V1不依部分爭議金額拆單出貨。已有label但未pickup就走terminal shipment cancellation＋warehouse custody；已picked／delivered不得自動取消或restock，只保存delivery evidence並處理dispute。只有chargeback terminal `lost | accepted`或`confirmed_reversed`，且貨物從未出庫或已terminal-cancelled＋custody時，recent-AAL2 Owner才可提交`financial_reversal_cancelled` settlement：同一transaction為全單units建立source=`financial_reversal`的唯一`order_unit_credits`與原始shipping credit、完整invoice adjustment allocations，將confirmed unrecredited debit逐分配置到`dispute_recovery_allocations`，並對`total customer credit - allocated debit`建立精確原路refund；只有full recovery覆蓋全部credit時refund才為0。partial recovery若剩餘額因其他unknown／open claim無法安全退款，就維持`payment_at_risk | manual_review`、不commit cancellation或回庫。settlement commit＋custody重驗後才以`financial_reversal_restock:{unit_id}` exact-once逐unit回庫；chargeback本身不呼叫refund，只有上式未涵蓋差額走一般refund lane。後續won／recredit按第12節釋放allocation並補shortfall，不能自動恢復fulfillment、復活order或重扣庫存；既已回庫的order進P0 accounting review直到差額refund與會計lane收斂。
+   - 物流主路徑為`draft → label_pending → label_created → ready_for_pickup → picked_up → in_transit → delivered`；取消分支只允許`label_pending | label_created | ready_for_pickup → cancellation_pending → shipment_cancelled`，其中`shipment_cancelled`必須有provider-confirmed terminal cancellation receipt才可提交。`cancellation_pending`期間若pickup先由provider確認則轉`picked_up`並進return流程；`shipment_cancelled`是不可被晚到pickup靜默覆寫的terminal state，後續矛盾event只append保存、立即P0／停單並進人工provider dispute。每個transition保留原始provider code、receipt、provider effective time、站內received time與標準映射；從未claim shipment operation的order不偽造`shipment_cancelled`。
+   - 黑貓 `picked_up` 前只能提出取消；若從未claim任何shipment operation，可在倉內custody確認後核准；若已建label，必須先取得provider-confirmed terminal label cancellation、確認沒有`in_flight | unknown` shipment operation並完成倉內custody雙掃碼，才可核准。僅一次「尚未picked_up」query不是安全證據；pickup先發生或取消結果unknown就維持`logistics_reconciling`，pickup勝出後入口轉退貨。
+   - 原則上付款成功後 2 個工作日內交寄；週末、國定假日與已揭露特殊檔期不計。庫存錯誤在 1 個工作日內通知，不得自行替換商品。
+   - 出貨後寄送追蹤信，安全訂單頁同步單號及狀態；物流長時間未更新、退回寄件人或 exception 建立客服／營運案件。
+   - 核准退貨可建立 `direction=return` 的黑貓逆物流；易碎／高價商品保存包裝與驗收照片。
+
+15. **實作 14 日退貨、取消、退款與 Care & Repair**
+   - LIGNÉE 提供收貨次日起 14 日退貨服務，不限縮台灣通訊交易的法定權益；正式條款仍須台灣律師審核。
+   - 黑貓實際收件前可從安全訂單頁「提出」取消；這是`cancel_requested` intent，不代表立即釋放庫存或退款。command在order lock下停止新redirect／replacement attempt、freeze fulfillment與新invoice claim，現有物流若未pickup則排cancel；收件後入口改走退貨。V1支援整筆與部分退貨，但不直接換貨，尺寸／顏色更換需退款後重新下單。
+   - 未付款order進`cancel_requested → payment_reconciling`，保留reservation並查詢／依provider能力取消每個payable attempt；只有全部attempts有terminal-unpaid證據或跨過provider-safe deadline＋grace後再次確認未付款，才以同一transaction release inventory並成為`cancelled_unpaid`，此安全未付款路徑可自動接受取消而不需退款核准。期間晚到confirmed charge仍先記receipt；active reservation的首筆轉`paid_cancel_requested`而非釋放／履約，duplicate receipt走`provider_anomaly_refund_principal(reason=duplicate_receipt)`；已release的首筆走`paid_after_release`，不得假裝成一般已付款取消。
+   - 一般已付款取消先維持`paid_cancel_requested → logistics_reconciling`，在order lock下按parcel實際證據投影aggregate：全部parcel均「從未claim且倉內custody」或「provider-confirmed terminal-cancelled、無`in_flight | unknown` operation且倉內custody」才可進整單`cancel_approved`；全部已picked進`return_required`；至少一包安全取消且至少一包已picked進`mixed_parcel_recovery`。單次not-picked-up observation不夠，取消unknown持續reconcile／告警而不先refund。整單`cancel_approved`須recent-AAL2 Owner核准；同一transaction為全部units建立唯一`order_unit_credits`、若原運費非零則建立唯一shipping credit，永久fence redirect、invoice issue與fulfillment／shipment新claim，並啟動彼此獨立、各有operation key的付款lane `refund_ready → refund_in_flight | unknown → refund_succeeded | manual_review`及會計lane `invoice_adjustment_pending → reconciling → not_issued_closed | voided | allowance_issued | manual_review`。核准後不能因provider故障恢復履約；發票未知只讓會計lane保持pending並告警，**不得阻擋已依法核准的refund claim或把顧客資金困住**；refund未知也不得盲目重送，兩lane依第19節各自reconcile，只有退款與會計都收斂才投影`cancelled_closed`。
+   - `mixed_parcel_recovery`不得提交整單`cancel_approved`或整單退款。每個安全取消parcel的units經`parcel_cancel_settlement_ready → parcel_cancel_approved`獨立建立精確unit credit、refund／allowance delta與`mixed_cancel_restock:{parcel_id}:{unit_id}`；每個已picked parcel的units只能走`return_required → received → inspecting → accepted_* | rejected`，實際收回驗收前不得credit或restock。任一terminal-cancelled unit不得再claim fulfillment，任一picked unit不得走cancel credit／cancel restock；晚到pickup矛盾只append event、P0停單並人工處理，不能覆寫terminal parcel。顧客保留任何picked unit時投影`partially_cancelled_closed`且不退原運費；其後picked units全數依法退回並credit才投影`mixed_cancel_closed`。每個已核准parcel settlement立即各自前進，不等待其他parcel才保存顧客credit。
+   - paid cancellation不能遺漏已sale-decrement的實物。整單或mixed cancel restock的必要前置是已commit的對應settlement、每個目標parcel「從未claim或已terminal-cancelled」證據及Fulfillment custody雙掃碼；在order／parcel／unit／SKU固定鎖序重驗後，才以每unit唯一movement key做`Δon_hand=+1, Δreserved=0`，重跑只回放同movement。pickup勝出改走return inspection；庫內找不到或不可售則進inventory discrepancy／damaged disposition，不得自動加回。refund、invoice adjustment與restock是分離狀態，daily reconciliation逐unit比對credit、terminal shipment evidence與movement；`paid_after_release`因從未sale-decrement，明確禁止任何cancel restock。
+   - 整筆合規退貨退商品與原始標準運費；部分退貨只退所退商品，且不追回原免運；退款只回原付款方式，不提供購物金、現金或人工匯款替代。
+   - 每筆合規訂單原則上提供一次免費逆物流；瑕疵、寄錯、運送損壞不占一般退貨權益，費用由品牌負擔。
+   - 退貨case狀態為`requested → authorized | rejected → received → inspecting → settlement_pending → closed`；每個unit依所屬parcel的provider-confirmed delivered time凍結`return_eligible_until`，每個`return_unit_dispositions`只允許`requested → authorized → received → inspecting → accepted_sellable | accepted_non_sellable | rejected`。Owner核准accepted units時，`approve_return_settlement`按order、applied receipt、case、unit ID固定順序鎖row，同一transaction建立immutable `return_settlements`、unit credit snapshot、inventory movements及refund／invoice outbox；accepted_sellable才以`return_sellable:{return_case_id}:{unit_id}`做`+1,0`，accepted_non_sellable進`return_damaged`／write-off，rejected不產生credit或movement。
+   - `order_unit_credits`是取消、mixed cancel與退貨共用的customer-credit ledger；`order_item_unit_id`有全域於該order的unique constraint，每unit最多credit一次，並保存source、原始gross／net／tax與settlement ID。`refund_allocations`只能指向正常`applied_payment_receipt_id`，`invoice_adjustment_allocations`指向同一unit／shipping credit，兩者各有unique operation key。每次商品credit精確等於所選原始units的snapshot；部分退貨永不追回原免運、也不建立負運費。只有累計已financially credited units覆蓋全單所有售出units時，才以order-level partial unique constraint加退原始shipping snapshot恰一次；原運費為零仍為零，若顧客保留任一unit就不退運費。
+   - Refund lane與invoice lane彼此獨立；若已發部分allowance後才全退，會計lane只補足剩餘allowance，不得再full void重複沖銷。只有尚無allowance且會計師核准矩陣允許時才可void。每個settlement必須滿足`customer_credit_gross = refund_claim_gross + active_dispute_recovery_allocation_gross = unit_credit_gross + optional_shipping_credit_gross`；invoice adjustment的gross／net／tax逐分等於完整unit＋shipping customer credit，不因debit allocation縮小。recredit釋放allocation時再把同額轉為唯一shortfall refund；provider unknown占用operation直到reconcile，不可重送新key。
+   - Support／Fulfillment可建立退款申請，一般取消／退貨退款只有Owner能核准與送出；唯一narrow machine exception是第12節`provider_anomaly_refund_principal`，且只接受DB枚舉`duplicate_receipt | paid_after_release`、由guard選定receipt並精確全額原路退，不接受人工amount／target。所有`succeeded`、`in_flight | unknown | manual_review`且仍可能遠端成功的refund claim、confirmed unrecredited debit及第12節`open_dispute_reserve`共同占用receipt recovery budget；只有authenticated terminal-not-applied、recredit，或已到`refund_priority_at`且通過case／credit上限與唯一鍵的`statutory_priority_releases`才可釋放對應占用。一般新claim不得使其總額超過capture，deadline release所建立的claim也只能精確等於同transaction釋放的reserve。外部chargeback／reversal事實即使造成over-recovery仍先append保存，再建`over_recovery_exception`，不可由constraint丟棄。
+   - 同一receipt lock下另計`reserved_return_liability = Σ尚未credit且(return_eligible_until未過或退貨／法定權利case未terminal)之unit gross + 若shipping尚未credit且所有其餘未credit units仍可能使全單最終credited時的原始shipping gross`；case terminal／eligibility到期或unit credit commit才釋放對應reserve。V1不執行獨立monetary goodwill／補償付款：Support只能建立audited goodwill case供人工非金錢補救／後續版本評估，不能排refund或外部付款outbox，因此不得用補償耗掉此liability或繞過receipt budget。API失敗／unknown維持`refund_pending | manual_review`並告警。
+   - 每件商品提供專屬 care guide。安全訂單頁只對供應鏈已確認可評估的商品建立 Care & Repair inquiry，記錄狀況、可行性與後續建議；V1 不建立付費維修服務訂單、不收維修費、不開維修發票，也不在前台承諾報價。瑕疵／保固案件仍走既有售後／退貨退款流程；付費維修 commerce lifecycle 另案規劃。
+
+16. **建立安全的訪客訂單查詢、客服與檔案上傳**
+   - 不建立 customer／會員帳號。訂單確認信包含高熵、一次性 access token；資料庫只存 hash、用途、期限、使用／撤銷時間。
+   - Email token 使用至少 256-bit entropy、TTL 30 分鐘，以 `https://estatelignee.com/orders/access#token=...` 的 URL fragment 傳遞；access 頁不載 analytics，立即將 fragment 以 POST 交換成只限單張訂單、30 分鐘、HttpOnly、Secure、SameSite=Lax cookie，再清除 fragment／history 並 redirect 到不含 token 的 URL。
+   - 重寄入口對存在／不存在 Email 一律回相同訊息，配合 IP／Email 限速；訂單號＋Email 本身永遠不足以讀取訂單。
+   - 安全訂單頁提供付款／發票／物流狀態、取消、退貨、損壞照片、客服與維修申請。
+   - 客服案件保存編號、類型、狀態、負責人、內部備註及時間；一般案件承諾 1 個工作日內首次回覆，已付款異常為高優先。
+   - 官網、`care@estatelignee.com` 與正式台灣客服電話為 V1 三入口；電話或普通 Email 不直接揭露訂單內容，敏感操作必須透過安全訂單 session。
+   - 原信箱在付款後永久無法使用時，提供 rate-limited 的人工 recovery：Support 只能建案；訂單電話明確視為「未驗證的 callback channel」，不是身分憑證。品牌可主動回撥，但還必須由顧客提供可在綠界後台獨立核對的 provider transaction／授權參考、金額與時間等付款證據，且兩位 Owner 都以 AAL2 核准。
+   - 核准後才可撤銷所有既有 token／session、把新 Email 完成 possession verification，並通知舊 Email；audit 只存遮蔽證據摘要，不要求或保存完整卡號、CVV或身分證影本。不得僅憑訂單號、電話、來信、姓名或地址改 Email；證據不足就維持原 Email 並提供不揭露訂單的人工售後協助。
+   - 損壞／維修上傳只接受 JPEG／PNG／WebP、限制大小與張數；伺服器驗證 magic bytes、重新編碼並移除 EXIF，放 private Vercel Blob，只有通過訂單／管理員授權的 server route 可以串流讀取，禁止公開 URL、PDF／可執行檔。
+   - 案件圖片在結案 12 個月後刪除；若進入退款爭議或 legal hold 則依案件保留。Blob inventory、刪除與 restore 分開測試，因 Supabase database backup 不包含檔案物件。
+
+17. **用 Resend＋React Email 完成交易信、電子報與私人預約**
+   - 購買並驗證 `estatelignee.com` 後設定 SPF、DKIM、DMARC 與寄件網域；規劃 `orders@`、`care@`、`appointments@`、`letters@estatelignee.com`。
+   - 直接把 apex `estatelignee.com` 設為 Resend inbound receiving custom domain／MX，並以 DNS 實測 `care@estatelignee.com` 可收件；不得只設定不會接收 apex mail 的子網域。每封案件回信使用不含訂單號的 opaque `care+{case-token}@estatelignee.com` Reply-To，outbound／inbound 都以該 token thread；若 apex MX 與實際商業信箱需求衝突，就在 live 前改採有人值守的 apex mailbox＋受驗證轉送，不能仍公開無法收信的地址。
+   - signed inbound webhook 先做冪等、寄件頻率、body／附件大小、MIME、spam 與 malware 檢查，HTML 轉安全純文字，附件隔離於 private encrypted Blob，通過掃描後才連到 case。無法安全配對的信進人工 triage，不靠主旨文字授權訂單操作。
+   - 後台 staff 只能經 BFF 讀取 inbound case；原始信、quoted history、附件與 reply address 都按 support PII 分類、遮蔽 log 並套用保存期。Inbound webhook、MX、threading、附件 quarantine、退信及 staff access 必須有 Sandbox／fixture 驗收，否則 `care@` 不得宣稱可收件。
+   - 交易模板至少涵蓋：待付款、付款成功、付款異常、訂單確認、發票、出貨、配送異常、取消、退貨、退款、訂單安全連結、客服與維修。
+   - 每封 Email 使用不可重用 operation key、模板版本與 outbox；記錄 delivered／bounced／complained webhook，開信與點擊追蹤預設關閉。
+   - 退信不改變付款事實，但對已付款訂單建立 Owner 告警；Email 內容避免完整地址、電話與長效 token。
+   - 電子報採 double opt-in、一鍵退訂與獨立 consent record；下單 Email 絕不自動加入行銷名單，退訂行銷不影響交易信。
+   - Private Appointment 是人工確認申請，不做即時排程；只收姓名、Email、電話、偏好聯絡方式與短訊息，後台管理狀態並由 Resend 通知。
+   - 電子報與預約使用伺服器驗證、honeypot、速率限制與統一回應；V1 不接 Mailchimp、HubSpot、外部 CRM 或即時聊天。
+
+18. **建立邀請制、AAL2 的三角色營運後台**
+   - `auth.users`只供管理員；禁止public signup。active＋provisional Owner為零時，只能用第5節2-of-3 hardware-key bootstrap authority提交一次性manifest及stable operation ID，逐步建立兩個provisional inactive Owner、明確Email、invite delivery與audit；不宣稱Auth API與DB原子。重跑同operation只reconcile同一saga，不建立第三個user；partial success保持commerce off。兩位不同自然人都完成invite、TOTP MFA／AAL2、離線recovery codes及互相驗證後，才在DB原子activate memberships並允許commerce live；bootstrap mTLS certificate與nonce不論成敗立即撤銷，已用custodian keys依runbook輪替。
+   - 三位hardware-key custodian的實際姓名／聯絡與替補須在live前登記，其中至少兩位獨立於兩個Owner帳號，且任何被處置Owner不得湊足2-of-3。break-glass只供兩位Owner都失去存取時走第5節recovery manifest；啟動先把Edge／DB live、checkout、canary、index關閉並開no-cache，再撤銷全體admin sessions、依Auth saga恢復Owner並強制重綁MFA／輪替credential。它不能退款、發布、開站、改價或讀PII；完整事件進不可變audit，演練／使用後立即輪替hardware keys。
+   - Production Auth redirect allowlist 只允許 `https://estatelignee.com/admin/auth/callback` 與 `https://estatelignee.com/admin/auth/recovery`；不允許 production wildcard、`*.vercel.app`、`www`、任意 `next` 或 Preview callback。Localhost／Preview 使用分開的 Auth 設定與 mock，不與 Production session 混用。
+   - `admin_memberships` 角色固定：
+     - `owner`：商品、價格、發布、庫存、訂單、退款、發票、管理員及稽核唯讀。
+     - `fulfillment`：收貨／盤點、揀貨、出貨、物流、退貨收件與驗收；可提出退款但不能執行。
+     - `support`：查單、案件、備註、取消／退貨／退款申請；不可改價、改庫存或退款。
+   - 後台頁面包含商品草稿／發布檢查、SKU／價格／庫存 movement、50 件 release batch、訂單、理貨、物流、取消、退貨、退款、發票異常、provider events、outbox／dead letter、reconciliation、Email、客服、維修、預約與電子報。
+   - 權限每次在資料庫 membership 驗證，不只相信 user metadata；停權立即生效。
+   - `audit_events` append-only，包含 actor、動作、實體、遮蔽後差異、request ID 與時間；包括 Owner 在內的一般管理員都不能 UPDATE／DELETE。
+   - 每位管理員完成 TOTP 時產生 10 組至少 128-bit、單次使用 recovery codes，只顯示一次並以獨立 recovery HMAC key 保存 hash。使用 recovery code 仍須有效密碼或精確 allowlist 的 Auth recovery session與另一位 Owner 核准；成功後撤銷全部 session、失效舊 recovery codes／TOTP factor並強制重新註冊。BFF 每次同時檢查 `sessions_revoked_at`／session revision，使舊 JWT 不能等到自然過期才失效。
+   - 兩位active Owner是「啟用／維持commerce live」的gate，不是緊急停權障礙。確認帳號疑似被入侵時，任一未被處置、recent-AAL2 Owner可獨自執行只會降低權限／可用性的fail-safe quarantine，不需被入侵者share或break-glass：依第2節先fence Edge，再在DB transaction關live／checkout／canary／index、開no-cache、停權target membership並提高`sessions_revoked_at`，所以Auth API暫時失敗也立即被BFF／RPC拒絕；再由Auth saga撤銷session及suspend target，未知結果持續對帳。允許commerce關閉期間暫時只剩一位Owner，但該Owner不得核准一般退款、發布、改價或重新開站（第12節只對`duplicate_receipt | paid_after_release`精確全額receipt生效的provider-anomaly machine principal仍可保護顧客），須先建立並驗證replacement Owner；break-glass dual control只用於兩位都失去存取後的恢復，不阻擋containment。
+   - 一般情況禁止移除最後兩位 Owner之一，除非 replacement 已 active。遺失 TOTP／密碼時需 recovery code＋另一位 Owner 核准；兩人都失去存取才使用雙人 break-glass。重設後撤銷該帳號所有 session、重綁 MFA並告警；recovery code 雜湊保存、一次性使用且不可由一般管理員讀取。
+   - V1不做複雜多層簽核；一般退款、正式發布、管理員邀請與runtime `commerce_live`／`production_canary_enabled`切換只限Owner。唯一machine例外是第12節`provider_anomaly_refund_principal`：DB原因只能是`duplicate_receipt | paid_after_release`，guard只能選QueryTradeInfo-confirmed且尚未退款的receipt並原路精確全退，無可調amount／target／跨order能力。
+
+19. **加入交易級冪等、transactional outbox、排程與對帳**
+   - webhook 事件以 `(provider, event_type, provider_object_id, normalized_status, fingerprint)` 唯一；無 provider event ID 時，以經驗證、排序後的必要業務欄位產生 fingerprint。
+   - 結帳、取消、退款、建物流單、重寄連結等command接受`Idempotency-Key`。`idempotency_commands`以`(actor_scope, command_name, key)`唯一，保存request hash、aggregate ID、result pointer／status及retention deadline；winner insert後持row／transaction lock，並在**同一DB transaction**完成aggregate mutation、inventory／ledger、outbox及completed result。併發相同key由unique constraint等待winner commit後回放同result，相同key＋不同hash拒絕；winner rollback時不留下claim，DB commit後HTTP response前crash則retry讀已completed result，因此不存在已commit mutation但永久`processing`的狀態。remote effect只在後續provider operation執行，不放進command transaction。
+   - idempotency的PII response body依一般保留期移除後改存不可逆hash＋aggregate pointer，但key／request hash／result code tombstone至少保留到受保護aggregate法定／業務生命週期結束；同一aggregate仍可接受command時不得提早回收。只有明確`failed_before_commit`可用同key重試，已完成或已排external effect一律回放。
+   - domain transaction 只更新站內狀態並寫 `outbox_jobs`；Email、發票、物流與退款由 worker 使用 `FOR UPDATE SKIP LOCKED` 租約處理、指數退避、唯一 operation key 與 dead-letter queue。
+   - 每個logical external effect先建立一筆`provider_operations`，其operation key／external correlation ID在該effect所有retries保持相同且不可被另一effect重用。狀態只允許：`queued → in_flight`；`in_flight → succeeded | retry_safe | failed_terminal | unknown`；`unknown → succeeded | retry_safe | failed_terminal | manual_review`；`manual_review → succeeded | retry_safe | failed_terminal`；`retry_safe → queued`。reconciliation是append-only evidence event，不是含糊終態；不存在只憑「not found」即可重送的absence state。
+   - worker取得row／advisory lock後以compare-and-set轉移；遠端成功但本機commit前crash、transport error、HTTP 5xx、response遺失、lease超時或provider eventual-consistency window內的not-found一律先進`unknown`，不得當retryable。只有provider-specific policy同時提供「authenticated／signed終態證據、documented terminal-not-applied保證、已超過書面maximum propagation window」時才可成為`retry_safe`；若只證明目前查不到、沒有可靠query或合約沒有該保證，就在`manual_review`無限期保留而不盲目重送。Owner AAL2只能按provider portal／書面證據選合法outcome並留audit。
+   - reconciliation判定`succeeded`時不得只改`provider_operations`：必須在aggregate lock下以一個transaction補做該external effect對應且尚缺的local domain transition、ledger／order狀態及下游outbox；unique operation key使重跑回放同結果。任何provider-documented「可安全再送」錯誤也先保存原始authenticated code與policy version，沒有明確no-side-effect語意就仍是`unknown`。
+   - order aggregate lock、期望版本與monotonic CAS只序列化「claim新operation」；不能把lock release後仍`in_flight | unknown`的remote effect視為已完成。取消與pickup、兩位Owner同時核准，以及**各自lane內**的重複refund或重複invoice issue／void／allowance由第15節durable saga及mutual-exclusion guards禁止相衝突的新claim；`cancel_requested`後不得claim新一般invoice issue，`cancel_approved`後refund lane與invoice-adjustment lane則可獨立前進，invoice unknown不得阻擋合法refund。loser收到conflict並重讀，不得產生第二external operation；會計lane最終仍須消除／調整與全額退款不相容的有效發票。禁止資料庫成功但副作用未排入的dual-write。
+   - 排程：
+     - 每分鐘把超過 customer deadline 的 `active` reservation 轉為 `release_pending`（不減 reserved），並排入 provider reconciliation；只有第 11 節安全條件成立才釋放。
+     - 每分鐘以DB time掃描`refund_priority_at ≤ now`且customer credit未由confirmed debit／refund完整涵蓋者，在同transaction建立唯一`statutory_refund_priority:{customer_credit_id}`高優先deadline job；worker依第12節case／receipt／credit lock執行case-level accept reconcile或priority reserve release＋refund outbox。`customer_refund_due_at`逾期仍未有confirmed／still-in-flight退款即P0，不能由一般queue或open dispute吞掉。
+     - 每 5 分鐘檢查付款成功但庫存／發票／outbox 未完成。
+     - 每小時查詢長時間 pending 的付款、退款、發票、物流，以及所有open dispute／reversal並檢查`internal_due_at`。
+     - 每日比對綠界交易／退款／chargeback／reversal debit與recredit報表和站內ledger；unmatched或亂序event不得因日界線被忽略。
+   - DB-only deadline scan 由 Supabase Cron 執行，但它不得自行呼叫provider或釋放付款中的庫存；它只原子建立上述priority job，實際查詢綠界、statutory reserve release及退款由具 `CRON_SECRET` 的Vercel worker執行。每個 schedule 以 advisory lock 防重疊、`scheduler_runs` 記錄 expected／started／heartbeat／completed、job claim 有 bounded lease 與失聯回收；refund-priority queue有保留worker concurrency，不能被一般Email／物流／對帳耗盡。`provider_refund_safety_window`下限必須涵蓋兩次最壞scan interval、rehearsal P99 queue drain、worker failover／重試及provider書面refund completion／propagation SLA；若法律／品牌deadline容不下該下限，custom live gate失敗，不能把`customer_refund_due_at`往後移。正式方案若無法可靠達到上述頻率，禁止 live。
+   - 每個關鍵 schedule 都有獨立 monitor key／`DEADMAN_HEARTBEAT_URL_*`、expected interval 與 grace；refund-priority scan／worker使用自己的dead-man，不與一般dispute hourly scan共用。只有該 schedule 完成 bounded claim／健康檢查後才 ping。由不依賴 Supabase、Vercel app database 或 Resend 的外部 monitor 在連續兩次 miss／超過 grace 時通知值班人；一個正常 schedule 的 ping 不能掩蓋另一個漏跑。
+   - 心跳之外另監測pipeline health：每種critical job在schema保存`available_at`與per-job-type SLA，lag只計已runnable工作`now - available_at`，未到期的scheduled future job不算backlog。payment query >2分鐘、refund／invoice runnable >5分鐘，或`verification_pending | unknown | release_pending`超過各自`reconcile_after`／safe deadline、dead-letter新增任何critical job、lease 15分鐘內回收>3次、queue depth>100或高於15分鐘基線5倍、每日對帳落後>26小時，均P1並自動停新checkout；open dispute本身至少P1，距`internal_due_at`不足policy safety window為P0。任何refund-priority job lag超過1分鐘、projected drain超過`customer_refund_due_at`、deadline錯過、unmatched reversal或dispute／refund-priority dead-man miss皆為P0。第12節另以query token rate計算projected drain time。閾值以production rehearsal校準但不得刪除，DB heartbeat、backlog alarm與每個external dead-man都需獨立故障演練。
+   - 金額矛盾、重複成功付款、負庫存、超額退款／over-recovery、已付款無訂單、unmatched debit／recredit、發票長期失敗或大量 Email 退信都建立 incident；高嚴重度可把共享 runtime `checkout_enabled` 設為 false，但不得改 Vercel env、不得自動取消已付款訂單。
+   - P0/P1 事件同時送 Resend 與 `INCIDENT_WEBHOOK_URL` 指定的第二通道（Slack／Teams／PagerDuty 類型，由 Owner 上線前提供），並落入站內 incident queue；第二通道不得依賴 Resend，缺少實際有人值守的通道就不能 live。
+
+20. **落實資料最小化、加密、保留與供應商揭露**
+   - 先建立可執行的 field-level data inventory：每個欄位／Blob 標註資料類型、目的、敏感等級、合法用途、角色、處理者、地區、加密、lookup、保存／刪除與 legal hold。姓名、contact、address、invoice、祝福語、訂單備註、預約、support／inbound email、內部備註、recovery 證據與上傳圖片都視為可能含 PII；audit diff 只留欄位名與遮蔽後 change marker，不複製明文。
+   - 敏感結構化欄位與自由文字採 application envelope encryption：每筆／每用途 DEK 以 AES-256-GCM、CSPRNG 產生且永不重用的 96-bit nonce 加密，AAD 綁定 schema／table／row UUID／column／schema version；DEK 再由分用途（order、engagement、support）的版本化 KEK 包裹。Blob 在重編碼／掃描後於 server 加密再存 private store，object name 不含 PII。
+   - KEK／HMAC的authoritative versioned keyring存於Supabase Vault，不烘焙在一般deployment env；只有窄`key_unwrap` RPC可按purpose／version取用，`vault.decrypted_secrets`對一般admin、`worker_rpc_caller`、Data API與browser無grant。Vercel project env、Production env、deployment與build artifact永不保存`crypto_reader` SCRAM credential。Migration預建`crypto_reader_base NOLOGIN`，只具DB CONNECT、固定schema USAGE與`key_unwrap` EXECUTE；另建`crypto_role_lifecycle_owner NOLOGIN`，只為hash-pinned lifecycle functions持必要`CREATEROLE`、`pg_signal_backend`與對`crypto_reader_base`的ADMIN能力，沒有Vault／商務table／Auth／migration DDL權限，且只有migration owner能replace functions。AWS `CryptoCredentialBroker`持獨立`crypto_role_lifecycle_caller LOGIN NOINHERIT NOBYPASSRLS` credential，只能EXECUTE `create_crypto_release_role`、`rotate_crypto_release_role`與`revoke_crypto_release_role(binding_id, expected_generation, operation_id)`，不能直接`CREATE/ALTER/DROP ROLE`或呼叫unwrap；credential只在其專用Secrets Manager、從AWS固定egress使用並30天輪替，不與Migration／Unwrap broker共用。
+   - Lifecycle RPC不接受role name、password或SQL文字；它鎖定DB內已由第4節capability流程建立的binding／one-time lifecycle intent，按release UUID自行推導並嚴格quote唯一`crypto_reader_<release_uuid> LOGIN INHERIT NOBYPASSRLS NOCREATEDB NOCREATEROLE NOREPLICATION VALID UNTIL≤30d`、產生SCRAM、只授權繼承權限極小的`crypto_reader_base` membership並把credential一次回給broker存Secrets Manager；base是唯一CONNECT／USAGE／EXECUTE來源，沒有table／Vault direct grant，故release role在connection startup即可CONNECT而不依賴尚未可能執行的`SET ROLE`。Rotation明確是可恢復saga而非跨DB／Secrets Manager假原子：先停止該binding新unwrap、Rotate RPC換新SCRAM並標`db_applied`；broker成功寫versioned secret且用新連線驗證後才標`verified`、終止該`session_user`全部舊sessions並恢復scope。若response遺失或secret write失敗，binding維持crypto-unavailable；lifecycle caller以新operation再rotate，不恢復或猜舊password，直到新secret驗證，至少每30天執行。Revoke RPC先撤base membership、`NOLOGIN`／rotate，再以exact role作`session_user`終止`pg_stat_activity`全部backend，確認零session後drop；受控dynamic SQL只有上述固定template／DB-derived identifier，所有operation ID／generation冪等且audit不記password。若disposable Supabase無法證明managed role可讓此NOLOGIN owner建立／輪替／撤權／終止既有與未回報session，或caller能碰其他role／Vault／table，custom live gate失敗，不改為共用Migration tenant-admin。
+   - Deployment完成第4節post-creation binding後，`CryptoCredentialBroker`才透過上述RPC建立release role；`CryptoUnwrapBroker`逐request驗`deployment_capability(scope=crypto:unwrap)`、DPoP、active generation及DB建立且單次consume的短效context intent後，才從固定egress以該release role直接呼叫`key_unwrap`。Postgres以不可偽造的`session_user`對到exact deployment／git SHA／reader capability，再核對purpose、rate limit、recent job／case context並在同transaction audit，結果只回原DPoP-authenticated caller；unwrap material不得跨request／generation持久化或進process-global cache，request結束即zeroize。function-owner matrix只允許指定Vault IDs，不能列舉任意secret。
+   - Release controller同時持GitHub environment concurrency lock及DynamoDB conditional release lease；Vercel Production auto-deploy、dashboard promote、deploy hook與Production env mutation全部停用或把權限收斂到該release service，最多同時一個active與一個candidate。任何未登記或競爭的Production deployment立即fail-close，拿不到binding、capability或crypto role，並停新checkout／告警；單靠軟體mutex不算排除外部部署路徑。Candidate保持`COMMERCE_CAPABLE=false`完成smoke。cutover先停止舊binding capability refresh；alias切換與bounded drain後，controller原子提高generation並撤銷舊binding，再`REVOKE EXECUTE/CONNECT`、`NOLOGIN`該release role、按`session_user`終止全部backend並刪除broker secret，確認`pg_stat_activity`零session後才完成promotion。`ops_private.crypto_policy`保存current write、minimum readable及每個active／candidate reader capability；rollback一律把舊commit建成新deployment，取得新DPoP binding／release UUID／role，不復活任何舊credential或binding。
+   - key rotation固定reader-before-writer：先建立新key、部署／驗證所有allowlisted readers、確認rebuild rollback candidate可讀，再切write version；舊key在完整資料／附件／backup保存窗內維持decrypt-only，完成重包裝與restore抽查後才撤銷。
+   - normalized Email／phone等必要查找只存分用途HMAC；輪替期間使用current＋previous key雙寫／雙查，完成受稽核backfill後撤銷舊key。key不進Preview、log或browser，所有解密記錄actor、case、欄位集合與理由。
+   - 不假設Supabase內部Vault root key可從已刪除／失控project匯出。每次新增、輪替或撤銷logical KEK／HMAC前，兩位Owner以AAL2建立同revision的雙核准escrow intent；兩位custodian再以第5節`PrivilegedRecoveryGateway` mTLS＋2-of-3 manifest觸發`key_escrow_export`。該command只在兩個未消耗Owner intents與custodian manifest完全匹配時一次輸出「仍需讀取的logical key values＋purpose／version／status／crypto_policy」，同transaction consume intents並寫audit，不能列出其他Vault secret；gateway Lambda在記憶體立即以第4節offline age public recipient加密，使用cross-account create-only role寫S3 Object Lock並回傳ciphertext hash，plaintext不回trusted workstation、不落disk／log。custodian另把同ciphertext寫一份離線媒體；失敗也撤銷短效certificate並清空execution。DR在來源Supabase完全不可用情境解密bundle、建立新Project Vault secrets、重新映射IDs並驗ciphertext／HMAC fixtures；來源仍可用時可使用官方restore-to-new-project所帶root key，但不能替代獨立escrow。
+   - 一般日誌、provider event 與錯誤追蹤遮蔽姓名、Email、電話、地址、token、卡務與 secrets；不記錄 request body 全文。
+   - 保留週期：
+     - 會計帳簿／必要財務 ledger 10 年；會計憑證至少 5 年，最終分類與起算由會計師核准。
+     - 訂單相關 contact／address／客服資料原則 5 年後刪除或去識別化；法律 hold／未結爭議例外。
+     - 未完成 checkout 與過期 reservation 30 天；失效 access token 7 天。
+     - 經遮蔽、具業務價值的 app／webhook ops event 在 Supabase 保存 90 天；Vercel 原始 runtime log 依實際方案保存，不宣稱平台提供 90 天。normalized 財務事件依會計保存需要另存。
+     - 私人預約結束 12 個月後刪除或匿名化。
+     - 電子報保存至退訂；退訂後只留防止誤寄所需的 Email HMAC／時間。
+     - 加密備份保留 30 天並隨週期自然淘汰。
+   - 提供查詢、更正、刪除與停止利用案件流程；依法須保留者改為限制用途／存取，保存期滿再刪除。
+   - `data-residency-register`在建立任何store／domain前凍結每一資料流、processor／subprocessor、資料類型、storage與transit國家、region不可變性、CDN／support／control-plane路徑及retention。至少明列：Supabase DB／Auth／Vault東京、Vercel Functions與兩個Blob stores `hnd1`、AWS immutable backup東京、ECPay／黑貓台灣；Resend選東京sending region但其account data、Email metadata、logs與API records仍儲存在美國。Vercel CDN／control plane及各provider subprocessor若依DPA跨其他國家也逐一揭露，不把「選東京」寫成所有metadata都在日本；實際DPA／subprocessor list變更需privacy review與revision。
+   - 隱私政策以該register揭露所有實際處理／儲存國家、目的、processor／subprocessor及保存路徑，不只寫跨境日本；上線前由台灣律師逐表、逐Blob與逐Email flow確認。region、retention或subprocessor無法確認時相關功能不得live。
+
+21. **更新 CSP、CSRF、濫用防護與秘密管理**
+   - 所有 HTML（公開與敏感）都採 dynamic rendering＋per-request nonce，不再對公開 HTML 使用 ISR／CDN cache；Next framework scripts、LIGNÉE scripts與允許的 inline JSON-LD 都帶同一 nonce，因此 `script-src 'self' 'nonce-{nonce}' 'strict-dynamic'` 可保持一致，Production 禁止 `unsafe-eval`／`unsafe-inline` script與第三方 script。只有build產生且不承載可撤銷內容的fingerprinted JS／CSS／字型可走immutable CDN；public media一律走第4／22節可撤銷`/media`路徑，catalog data另按第22節server cache。
+   - Production baseline 固定為 `default-src 'self'; script-src 'self' 'nonce-{nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; media-src 'self'; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; frame-src 'none'; frame-ancestors 'none'; upgrade-insecure-requests`，再按 route 加下列 `form-action`。唯一 `unsafe-*` 是 style 相容性例外；任何新增 origin／token須威脅審查與 semantic header test。
+   - 公開 route 的 `form-action 'self'`；一般`/checkout`及受限`/checkout/canary/{opaque_intent}`共用同一provider-form renderer與CSP middleware，只allowlist當前環境的綠界精確hosted endpoint，Sandbox與Live endpoint不得同時允許；canary route只能使用Live endpoint且入口API本身不render／POST跨站form。`/orders`、`/admin`只允許self。`/api/webhooks/*`不依賴瀏覽器CSP，而以provider簽章、方法、content type、body size、重放與速率限制保護。
+   - JSON-LD 只有 audited `SafeJsonLd` component 可以使用 `dangerouslySetInnerHTML`，且必須帶 request nonce。serializer 從 `JSON.stringify` 的 canonical資料進一步 escape `<`、`>`、`&`、`</script`、HTML comment opener與 U+2028／U+2029；禁止任意 raw HTML／script，並以惡意商品名、`</script><script>`、Unicode separator等 fixture 驗證 CSP與 DOM。
+   - 保留 `frame-ancestors 'none'`、`object-src 'none'`、`base-uri 'self'`、nosniff、strict referrer policy、HSTS（正式網域後）與最小 Permissions Policy；Apple Pay 在綠界 hosted page 執行，LIGNÉE 不需開放瀏覽器 Payment API。
+   - Browser cookie 採 Secure／HttpOnly／SameSite、短時效與窄 path；所有 cookie-auth 寫入加 CSRF token／Origin 驗證，管理員敏感操作需要重新驗證 AAL2。
+   - 公開表單與結帳採 HMAC 後的每日 IP／Email rate key、honeypot 與異常監測；不長期保存原始 IP。只有攻擊明顯時才加入額外 CAPTCHA。
+   - 建立 secret inventory、最小權限、輪替與撤銷 runbook；任何 secret 若出現在 Git、client bundle、Preview 或一般 log，視為 P0 並立即停單／輪替。
+
+22. **快取公開資料與資產，但動態產生安全 HTML**
+   - 公開 route HTML 一律 `force-dynamic`、每 request nonce與 `Cache-Control: private, no-store`；不使用 ISR HTML。品牌、篇章、分類、商品與法律的 server data可用 versioned Data Cache／cache tags 最多 5 分鐘；只有不可撤銷build assets走immutable CDN，public media另依第4節bounded cache。發布、改價、停售、封存、法律切版或媒體切換必須在同一 DB transaction 寫入 `cache_invalidation_jobs`，由 outbox worker冪等執行 tag invalidation，不做 commit 後 best-effort dual write。
+   - `catalog_emergency_no_cache`經Edge Config由Routing Proxy在Data Cache／route處理前讀取；true或Edge不可讀就rewrite至明確no-store data path、送noindex並停新checkout。即使Edge仍是舊revision，所有application response仍須按第2節先做no-store DB safety read，mismatch就不得讀／回舊cache；metadata、robots、sitemap、OG及public DTO沒有例外。
+   - critical召回／錯價／法律切版依第2節先完成restrictive Edge fence acknowledgement才commit domain mutation與invalidation outbox；DB自動fail-close則靠每request DB safety check即時阻擋。cache worker記錄Vercel acknowledgement與catalog／legal／safety revision；Owner有可稽核global purge command。停售／安全召回另由server-authoritative availability gate即時阻擋加入購物袋與結帳，所有public response不能引用已召回entity；一般非安全內容才可接受5分鐘data TTL。
+   - `/media/{sha}/{variant}`的cache key必含`media_safety_revision`，且外部request必須在任何cache lookup前通過Edge tombstone；query string、`Range`、`If-None-Match`、`If-Modified-Since`、`GET`或`HEAD`都不能跳過。Tombstoned URL固定回`410 Gone`、`Cache-Control: no-store`、`X-Robots-Tag: noindex`及零原始bytes，不能回`200`、`206`或`304`。backup可private保留bytes，但restore／rollback一律先恢復tombstones與revision，再恢復objects，最後才恢復non-revoked references；無法證明此順序、Edge-before-cache或精確purge時，所有public media維持`no-store`。
+   - PDP 可快取文案與媒體，但庫存徽章由 no-store availability DTO 更新；加入購物袋與結帳仍在 transaction 中重查價格／庫存。
+   - `/checkout`、`/orders`、`/admin`、webhook 與內部 job route 一律 private、no-store、noindex。
+   - 圖片使用正確 `sizes`、寬高、懶載入、WebP／AVIF；只有首屏主視覺 priority。中文字型依真實內容 subset，避免目前單一大型 preload 擴張。
+   - 正式 Core Web Vitals P75 目標：LCP ≤2.5s、INP ≤200ms、CLS ≤0.1；公開頁先以 production build、cold-cache、固定 throttling 三次 median 驗證，live 後用 Speed Insights 驗證真實 P75。
+   - 無障礙以 WCAG 2.2 AA；補齊 `aria-current`、mobile menu focus restore、錯誤摘要、動態結果 live region、200% zoom、減少動態與完整鍵盤流程。
+
+23. **啟用隱私優先分析、SEO 與可觀測性**
+   - V1最多只使用Vercel Web Analytics與Speed Insights；不放GA、Meta Pixel、廣告再行銷或跨站追蹤。兩個component只mount在`app/(public)/layout.tsx`，不放root layout；`app/(commerce)`、`app/(order-access)`、`app/(admin)`與API tree完全不import package，client navigation進敏感route時public layout會卸載。官方integration必須能接收request nonce，或由同一nonce信任的same-origin bootstrap安全載入，使`strict-dynamic`下script及beacon可實際執行；若Production exact CSP下無受支援的nonce-compatible路徑，就停用Analytics／Speed Insights而不是加入`unsafe-inline`或擴大origin，且兩者不是commerce live gate。
+   - custom event 只能經 server-owned allowlist／Zod wrapper送商品瀏覽、SKU選擇、加入購物袋等匿名名稱與枚舉值；free text、Email、電話、地址、order／token／case ID或未知 key一律拒絕。敏感 route wrapper永遠 no-op且CSP不載 analytics script。
+   - server-side commerce funnel 以聚合 SQL／operational metrics 建立，不把 PII 送分析服務。
+   - runtime `commerce_live=false` 或 `search_index_enabled=false` 時 metadata、robots 與 `X-Robots-Tag` 全域 noindex；live 後只開放品牌、篇章、Journal、分類與已發布商品。
+   - 產生 sitemap、canonical、Open Graph、Organization、Product、Offer、BreadcrumbList；JSON-LD 價格、SKU、圖片與 availability 只讀 server-authoritative live data，不建立假評分、評論、GTIN、MPN 或產地。
+   - 搜尋、facets、購物袋、結帳、訂單、後台與草稿維持 noindex；facet URL canonical 回主要分類。單語使用 `lang="zh-Hant-TW"`，不輸出空白英文 alternate。
+   - Vercel Observability、資料庫 incident、provider reconciliation 與 Resend webhook 共同形成營運看板；Owner 同時經 Resend 與獨立 incident webhook 收到付款、庫存、發票、物流、退款、退信及 5xx 異常通知。
+
+24. **完成法律、商業身分、包裝與營運內容**
+   - `estatelignee.com`、頁尾、聯絡頁、結帳、訂單信與條款必須顯示真正登記公司／商號、代表人、統編、營業地址、客服電話／Email、服務時間與申訴方式；未提供時只顯示 Sandbox，不填虛構值。
+   - 商品頁按實物揭露材質、產地、製造／委製、尺寸、保養、安全警語與必要標示；品牌敘事不能覆蓋事實。
+   - 法律頁至少包含隱私、交易條款、付款、配送、14 日退貨、退款、電子發票、申訴、Care & Repair 與資料處理。每次發布建立 `legal_documents` row，保存 type、version、`zh-Hant-TW` locale、canonical source、完整 rendered snapshot、SHA-256、published_at、supersedes ID 與發布人；一經 published 就由 grants＋trigger禁止 UPDATE／DELETE，任何修訂只能新增 row，不以「尚無訂單同意」為理由原地改寫。
+   - 每次法律發布產生單調`legal_bundle_revision`並觸發第2／22節restrictive invalidation；server-rendered checkout session保存當時document IDs、hashes與bundle revision。`order_consents`在建立order snapshot的同一transaction驗證opaque confirmation token及session bundle仍等於目前published bundle，再引用實際顯示的immutable documents並保存accepted_at、checkout surface／版本及hash；revision已變就原子回`409 TERMS_CHANGED`且不建order／reservation。它本身append-only、一般角色不得UPDATE／DELETE，訂單可在不依賴目前網站內容下重建當時精確條款。
+   - 標準 LIGNÉE 內包裝免費、外箱低調；祝福卡免費。易碎／高價品使用專屬保護與防拆設計。
+   - FSC、可回收、無塑、碳中和、真皮、絲、羊毛、黃銅等宣稱只有供應商證據完成後才可出現在 live。
+   - 正式上線前由台灣律師、會計師與實際商業主體完成書面審閱；AI 內容只是草稿，不視為法律或會計意見。
+
+25. **建立分層測試、供應商契約測試與 50 件內容驗收**
+   - Unit：TWD 金額／5% 稅額／運費邊界、價格版本、地址 allowlist、SKU、shipment plan、發票相容矩陣、庫存 availability、readiness predicates、狀態轉移、token、rate limit、CheckMacValue、provider mapping、retention。金額fixture至少含qty 3且tax residual不能整除，按亂序兩次退貨仍使unit gross／net／tax精確回到原line；NT$12,000免運部分退後不追回，付費運費先部分退後全退只在最後一次退原運費恰一次。另逐案驗`open_dispute_reserve=max(disputed-debit-active_statutory_priority_release,0)`、case／credit release上限與唯一鍵、recredit shortfall、`refund_priority_at`的局部reserve release，以及`reserved_return_liability`在unit eligibility／case／shipping邊界精確增加與釋放。
+   - Database integration：全新migration、function-owner grants／RLS／BFF／Auth broker result越權矩陣、row lock、20分鐘initial reservation、provider deadline／grace、同一訂單只能一個payable attempt、全部attempts safe-release、20個併發客戶搶最後一件、SKU／order／`active | release_pending` quota、transaction rollback、唯一inventory command、movement／balance／reservation reconciliation、idempotency、outbox、dead letter、PII envelope encryption／Vault keyring／HMAC rotation。另測`order_item_units`與`parcel_units`完整／不重複／同order constraints、同unit兩個return／cancel settlement並發只有一方成功、refund／invoice／dispute recovery unique allocations、unknown operation與扣除confirmed debit／priority release後的open reserve占budget、recredit原子release allocation＋唯一shortfall refund、shipping credit partial unique、accepted／rejected disposition及sellable／damaged movement；open full-amount dispute與accepted return並發時，case-level accept成功、accept unknown、不支援accept及無debit四條路徑都必須在`refund_priority_at`以confirmed debit allocation或具case／credit唯一鍵的局部`statutory_priority_releases`建立exact-once refund；晚到debit再分refund unknown／succeeded／terminal-not-applied三條收斂，不得盲目配置或重送。goodwill case永遠不能建立payment operation或減少`reserved_return_liability`。三包A從未claim、B terminal-cancelled、C picked只能進mixed recovery：A／B可各自exact-once credit／restock，C實際return inspection前不可credit／restock；C保留不退運費，C最後退回才退運費一次，亂序pickup／cancel不能double credit。另在真實disposable Supabase證明`backup_exporter NOBYPASSRLS`＋tenant policies／官方managed-schema export fallback可完整restore且不能解密Vault，並證明initial 2-of-3 bootstrap與正常dual-Owner `MigrationRunner`只接受exact digest；任意SQL、錯project／version、過期manifest、重播、Preview／developer IP、runner TTL後連線及broker失聯都必須拒絕。測試刻意保留已完成`SET ROLE migration_owner`的已回報direct session，並以同一per-run login另開一條未回報、不同`application_name`的連線再觸發reaper；必須觀察membership revoke、依session user終止兩個backend、`pg_stat_activity`歸零且兩個原socket後續DDL都失敗，只驗新連線或已回報PID失敗不算通過。另對每個expand／validate／enforce／contract transaction、每個backfill chunk及最終`complete + schema_migrations`原子transaction的commit前後逐點crash／response-loss；重啟只能以同release ID／digest、catalog fingerprint及cursor續跑，contract必須是後續獨立run，不能重複副作用、跳chunk或在不符時改寫final schema version。
+   - Crypto role lifecycle在同一disposable Supabase另做實權測試：caller只能以有效binding／generation建立推導出的release role，不能提供role name／SQL、讀Vault／商務table、管理其他role或取得migration credential；併發create／rotate／revoke只有一個winner。逐一在DB已換password後response遺失、Secrets Manager write失敗及新連線驗證前crash，必須維持crypto-unavailable並由新rotation operation收斂，不回復未知舊secret。保留一條已回報及一條不同`application_name`的未回報release session後revoke，必須觀察membership撤銷、`NOLOGIN`、依`session_user`終止全部backend、零session、drop role、兩個舊socket都無法再unwrap，且SCRAM不進statement／audit／broker log；任一managed privilege不成立就阻擋custom live。
+   - Abuse threat model明定為單一邏輯30分鐘內最多200 requests／分鐘、100個分散IP、100個已驗證Email。false-positive使用版本化fixture `abuse-legitimate-v1`：70% mobile／30% desktop，80%單SKU qty1、15%兩至三SKU、5%四至十SKU，所有identity均在hard quota內且庫存足夠；以固定seeds `20260724..20260728`各至少4,000筆、合計至少20,000筆legitimate reservation admissions，與攻擊流量按fixture時間線交錯。分母是所有本應admit的valid commands；分子是被拒絕、誤觸CAPTCHA／SKU pause或排隊超過30秒者；每個seed及合併結果的one-sided 95% Wilson upper confidence bound都必須≤1.0%。同時要求hard principal quota 100%生效、SKU hold budget不突破、circuit breaker 60秒內啟動、攻擊停止後10分鐘內恢復admission、無負庫存；超出envelope的distributed Sybil attack列residual risk。
+   - Provider contract：綠界成功／失敗／取消／逾時／重複／亂序／錯誤金額／錯誤簽章；兩個不同trade number都confirmed時只一筆applied sale／invoice，第一筆applied後其他attempt同transaction變`superseded_reconciling`且不再render form，已外開hosted page晚到付款只成duplicate receipt；reservation release後的首筆confirmed charge不sale／開票／履約。`provider_anomaly_refund_principal`對`duplicate_receipt | paid_after_release`都只能由guard選receipt並精確全退該receipt，不能動正常applied receipt。另測20／40分鐘查詢、provider-confirmed deadline、eventual-consistency window、terminal-not-applied／retry-safe證據；QueryTradeInfo token bucket、priority、concurrency、jitter、403 circuit與unsafe drain-time停單；Apple Pay on/off精確payload（含`IgnorePayment=ApplePay`）。Dispute fixture涵蓋chargeback lost、won without debit、debit後recredit、partial、duplicate／out-of-order event、refund succeeded／unknown後chargeback、return與chargeback並發、anomaly receipt先debit後recredit、accepted return以debit少退後recredit必補shortfall、open full dispute的case-level accept success／unknown／unsupported與statutory refund-priority branch、refund後晚到debit三種outcome、partial financial reversal取消只退未涵蓋差額、provider fee隔離、deadline與manual evidence；系統不得自行重複refund／allocation、少付credit、改寫capture或由chargeback本身直接呼叫refund，provider晚到debit造成的暫時over-recovery則必須完整入帳、停新claim並追recredit，不假裝不存在。另測電子發票option matrix／issue／void／allowance／dispute accounting、黑貓cartonization／建單／mixed cancel／逆物流及Resend outbound／signed inbound／quarantine。
+   - 綠界完整Sandbox callback只在local Supabase＋受控HTTPS tunnel執行；Vercel Preview永遠使用deterministic mock，trusted branch可手動啟動provider sandbox workflow且fork PR拿不到secrets。任何涉及Auth、Vault、grants、Cron或migration的release另須按第4節在disposable Supabase rehearsal project證明managed settings、外部side-effect停用、migration forward／rollback compatibility及銷毀。
+   - E2E：Email OTP HMAC／5次上限／atomic consume／重寄失效／distributed caps、完整訪客購買、價格改變、售罄、NT$12,000邊界、法律publish-vs-submit回`409 TERMS_CHANGED`；release rehearsal必須依序證明protected candidate smoke→alias／binding technical promotion但四個public flags仍false→canonical-host canary order→canary admission off而existing-order續作→canary order terminal→獨立50/50 public enable，任一步失敗都不得索引或讓一般checkout可用。第30號launch-approved正式價確為NT$2,200才可跑Apple Pay public-off production canary，否則canary必須保持off；callback→QueryTradeInfo-confirmed succeed→同transaction sale／invoice outbox、released後首筆付款只進`paid_after_release`精確全額refund、返回頁確認中、訂單token、雙Owner recovery、未付款cancel仍保留到provider-safe release、已付款全包pickup前取消須Owner commit `cancel_approved`後才可逐unit exact-once restock、invoice provider長期unknown時refund仍可完成且會計lane續對帳。另跑qty 3分兩次部分退貨、mixed三包cancel／return、accepted與rejected units、chargeback在shipment claim前／label cancel中／pickup後／delivered後、partial reversal取消精確退未涵蓋差額、debit配置到退貨後晚到recredit自動補shortfall、full reversal回庫後晚到recredit；四種發票、客服inbound、三角色後台、單一Owner emergency quarantine與2-of-3 break-glass皆須通過。
+   - Side-effect fault injection：對payment query confirmation、refund、invoice、shipment、dispute accept／debit／recredit、statutory reserve release、allocation release／shortfall refund、evidence submission、Email，以及每一個Auth Admin saga step（create／invite、factor／recovery、suspend、session revoke、credential rotation）在「remote success／local commit前」逐一crash；重啟後必須進unknown／reconcile、保持provisional membership inactive並只產生一次effect。另測broker response遺失／egress deny、invitation bounce、同一或不同parcel cancellation／pickup競態、terminal`shipment_cancelled`後晚到pickup只能append contradiction／P0而不能覆寫、refund／allowance遠端成功後local crash、locally-closed attempt後QueryTradeInfo success只能走`provider_success_override`及late callback-vs-expiry CAS競態。RecoveryTrustBootstrap在DynamoDB generation claim、create-only Secrets Manager write／response-loss／eventual not-found、AWS實際ARN＋VersionId conditional persist、sealed package conditional persist／delivery、Vault write、verifier metadata commit、fixture verification及active CAS每個邊界逐一crash；測試須證明只用deterministic Name＋ClientRequestToken找回同一secret、IAM只匹配該Name的六字元ARN suffix、取得後只按已存實際ARN／version讀同一v1，`aws_written`可重封裝但不能建立第二Name／version，`package_persisted`只重送既有ciphertext，永不產生平行v1／v2或在fixture前簽assertion。後續`recovery_assertion_hmac`輪替再於「DB加入新reader、broker加入新reader、gateway切writer、舊assertion已consume一邊但另一邊未consume、saga terminal、舊reader移除」每個邊界逐一crash，current＋draining previous必須讓既有operation收斂且重播仍失敗。
+   - Scheduler／cache：每個cron重複／overlap／worker crash／lease recovery／missed heartbeat／獨立dead-man、按`now - available_at`計算的per-job SLA及live-but-stuck backlog，另包含open-dispute deadline、每分鐘refund-priority scan、保留worker concurrency、priority／due threshold、獨立dead-man與每日debit／recredit report dead-man；故意讓一般queue飽和也必須在`customer_refund_due_at`前建立／處理唯一priority job。publish後invalidation失敗、retry、5分鐘data TTL、critical Edge-first fence，並故意延遲／遺失Edge propagation，逐一請求HTML、RSC／DTO、metadata、robots、sitemap、OG及JSON-LD，證明DB／Edge mismatch時不讀舊cache且立即noindex／停單。
+   - Security：CSRF、Origin、AAL2、admin browser只連same-origin且無Supabase Auth／private DB／PII直連、BFF human與SCRAM machine role、Auth broker OIDC＋DPoP-bound deployment capability＋DB-claimed operation、gateway驗Ed25519後的one-time HMAC assertion、function-owner matrix、token／OTP重放、rate limit、上傳／inbound檔案、CSP semantic directives、`SafeJsonLd` fixtures。Deployment capability負向測試含同project／Production OIDC但錯DPoP、偽造deployment ID／commit、Preview、舊／revoked deployment、錯audience／method／body、nonce／`jti`重播、expiry、alias切換及competing automatic／dashboard／deploy-hook build；enrollment另拒絕JWK substitution、私鑰欄位、錯curve／長度／base64url、非canonical encoding、signature驗證失敗及RFC 7638 thumbprint mismatch，只有release controller經`VercelReleaseProxy`查得並challenge exact URL者可取得／refresh。IAM／network測試證明controller不能讀原始Vercel credentials或直連Vercel API，proxy拒絕其他project／deployment host／path／method、redirect及畸形response；應用層即使單獨取得project Production OIDC或要求proxy注入bypass也不能存取非enrollment endpoint，並實測release後／30天rotation。Crypto測試證明Vercel env、artifact與log無SCRAM secret，lifecycle caller不能unwrap／碰其他role且不共用Migration principal，未enroll競爭deployment不能建立role或unwrap，舊binding撤銷後既有DB sessions也被終止且memory不跨request沿用。Recovery enrollment負向測試含未帶mTLS只能取challenge而不能呼叫gateway、單一／重複signer、CSR／SPKI substitution、改manifest／SAN／purpose、expired／replayed challenge、無private key的stolen cert、跨operation及terminal後replay；用有效或無效certificate直打任何`*.execute-api.*.amazonaws.com` hostname都不得到達authorizer或backend，custom domain以外的Host亦拒絕。RecoveryTrustBootstrap另拒絕錯initial digest／project／generation、平行provision、sealed package substitution、Vault fingerprint mismatch及fixture前activation；IAM測試證明enrollment Lambda不能讀HMAC或碰DB／Auth，trust-bootstrap service不能執行一般recovery／Auth／commerce command。admin invite／recovery local token不得出現在HTTP request target、access／error log、RSC URL、history、referrer或telemetry；一般與canary checkout都在exact CSP成功POST到唯一綠界endpoint。Asset backup另以Preview／舊deployment capability、錯audience／DPoP、錯或未釘住的KMS `kid`／JWK、錯ES256 signature／claims、重播／已consume token、reader-before-writer錯序、錯prefix／hash／length及quota exhaustion做負向測試，皆不得產生Object Lock object。所有公開頁在exact CSP下圖片成功載入且DOM／network／JSON-LD／OG不含`*.blob.vercel-storage.com`，secret／PII log scan與dependency audit必過。
+   - Analytics E2E同時做positive與negative：若分析啟用，公開首頁及PDP在exact Production CSP下必須成功載入nonce-trusted Analytics／Speed Insights script並各送出預期beacon；若做不到就驗證兩者完全停用。無論是否啟用，直接載入及由public client-navigation進`/checkout`、`/orders/access`、安全訂單、`/admin`時，任何analytics script／beacon／event request都失敗，bundle／route manifest也須證明敏感route沒有import。
+   - Crypto／rollback／DR：reader-before-writer rotation、current＋previous HMAC、舊ciphertext、logical keyring offline export、前任deployment binding／crypto role撤銷後無法refresh或unwrap且全部session被終止；rollback舊commit必須用新deployment／DPoP binding／role。來源Supabase與Vercel credentials均不可用時從S3 Object Lock＋2-of-3 age shares還原、新Vault reseed、public 150 masters／variants／manifest、**先還原的media tombstones／revision**與private附件全量restore；把時鐘推過一般30天backup lifecycle後，仍須以dependency-retained escrow／configuration bundle解密5／10年留存fixture，並驗季度reseal與最後依賴到期前不可刪除。任何rollback candidate reader capability低於`crypto_policy.minimum_readable_version`必須被自動拒絕，任何rollback／DR均不得復活tombstoned SHA。
+   - Content：公開商品恰 50，分類 `16/10/9/5/10`，篇章 `13/9/11/7/10`，移出 10 件完全不可達；所有 related ID、價格、SKU、尺寸、媒體、alt、SEO、法律與發布檢查完整。
+   - Asset：第一輪公開manifest恰150、內部錨點8；每件商品至少兩張圖，每個live外觀變體至少一張準確圖；所有資產逐張人工QA。先在兩個CDN region與browser暖透一個asset的每個variant並記錄`200`／ETag／bytes，再緊急撤銷；原URL與所有variant對一般、`HEAD`、Range、conditional及cache-busting request都必須回`410`且零原bytes，不能`200/206/304`，Blob origin／optimizer URL不可用，HTML／RSC／OG／JSON-LD／待寄Email無引用，rollback及完整DR後仍不可取。刪除隔離rehearsal的兩個Blob stores後，必須只靠immutable S3 masters／variants／manifest與先還原的tombstones重建non-revoked same-origin URLs，private object授權仍不得變公開。
+   - Visual／a11y：所有實際route在390×844、768×1024、1440×900擷取並人工核准；axe、鍵盤、focus、200% zoom、三次Lighthouse median與Production build都必須通過。
+   - Performance／capacity固定`launch-load-v1`：在hnd1 production-disabled真實build與disposable Supabase上，先5分鐘warm-up，再30 RPS維持15分鐘、100 RPS burst 2分鐘、300 virtual users；route mix為首頁10%、分類25%、PDP40%、Journal10%、search／facets／RSC navigation15%，20% request強制cold data cache但每一request都做no-store DB／Edge safety check。通過值為HTTP／function error與throttle各<0.1%、public server TTFB p95≤800ms／p99≤1.5s、safety-read p95≤75ms、DB pool peak≤70%、connection wait p95≤100ms、無memory／lease／cron starvation，且以每月1,000,000 public page views＋該burst每日一次推算的variable cost不超過ADR記錄並由使用者核准的數字。fixture、工具版本、region、seed及三次raw結果存證；任何降低load／放寬threshold或改成本上限都需新ADR與使用者決定。
+   - 必跑 `pnpm lint`、`pnpm typecheck`、`pnpm test`、`pnpm test:e2e`、`pnpm test:visual`、`pnpm audit --prod`、`pnpm build`、全新 Supabase reset／RLS negative tests 與 secret scan；任何付款／庫存／RLS／migration 測試失敗都阻擋部署。
+
+26. **依可回滾順序交付並以人工 Owner 動作正式啟用**
+   - 實作順序：
+     1. 一個工作日完成並核准 build-versus-buy ADR；只有 ADR 結論為 custom 才繼續。
+     2. 更新 spec、env schema、runtime controls、readiness predicates、provider interfaces 與 feature flags。
+     3. 建立private schemas、function-owner privilege matrix、same-origin admin BFF、SCRAM worker role、AWS Deployment／Crypto／Auth brokers、AssetJobAssertionIssuer、RecoveryCertificateEnrollment＋RecoveryTrustBootstrap＋PrivilegedRecoveryGateway、recoverable兩位Owner bootstrap saga、audit與RLS。
+     4. 建立 50 件 catalog、media、release gate、cache outbox 與後台。
+     5. 建立 inventory command、unit-level order snapshot／parcel mapping、reservation、shipment planning、checkout、orders 與 PII。
+     6. 建立 payment receipt／dispute ledger、provider operations、idempotency、outbox、scheduler health 與 reconciliation。
+     7. 建立發票、物流、mixed-parcel cancellation、unit-level退貨／退款、客服 inbound、Care inquiry 與 Email。
+     8. 生成／審核影像並完成五分類、五篇章與 SEO。
+     9. 完成local／CI／Sandbox與disposable Supabase rehearsal全流程驗證、來源平台不可用的immutable backup／logical keyring還原、dead-man、故障注入與營運演練。
+     10. Release controller取得GitHub environment lock＋DynamoDB lease後，由同一reviewed commit先建`COMMERCE_CAPABLE=false` production-disabled candidate；用Vercel API＋exact URL challenge完成DPoP binding，再取得短效capability與brokered crypto role做smoke。商戶／商品／法律gate完成後，以同一SHA及Production bindings建`COMMERCE_CAPABLE=true`新candidate，但保持DB／Edge `commerce_live=false`、`checkout_enabled=false`、`production_canary_enabled=false`、`search_index_enabled=false`、noindex與no-cache；capability、callback contract／route dry-run、existing-order predicates、crypto、media tombstone、catalog／legal revision及rollback rehearsal全通過後，Owner只能先核准下述fail-closed technical promotion，不能同一步開public commerce。
+   - GitHub `main` 啟用 branch protection、PR review 與 required checks；Preview 與 Production 必須來自通過測試的同一 reviewed commit，但因 environment bindings／secrets 不同而各自建置，不宣稱是同一 Preview artifact。Production build 預設 `COMMERCE_CAPABLE=false`；Vercel Production auto-deploy、dashboard promotion、deploy hooks與env mutation均停用或只有release service可用，release lease未持有時任何Production deployment一律不enroll並觸發fail-close。所有 live 決策只能由共享 runtime controls、exact active deployment binding與明確production-capable deployment共同決定，禁止build-time metadata靜默開站。
+   - Migration 只採向前且向後相容的 expand／backfill／validate／enforce／contract，破壞性 contract 至少跨兩次 deploy；不得以刪除訂單或回復舊資料庫作程式回滾。Production migration只能由AWS operational account的one-shot `MigrationRunner`從第4節固定egress執行：release manifest綁git SHA、ordered migration SHA-256、expected before／after schema version、disposable rehearsal evidence、nonce及≤30分鐘expiry，正常release須兩位recent-AAL2 Owner核准；首次尚無Owner時，只能由第5節2-of-3 initial Ed25519 manifest額外綁同一RecoveryTrustBootstrap HMAC v1 generation、initial migration digest／project ref／production-disabled deployment，使用一次後永久consume。AWS `MigrationCredentialBroker`持不進runner／app的Supabase tenant-admin credential，只可建立本次`migration_runner_<operation_id>`、授予CONNECT＋migration-owner SET membership及30分鐘SCRAM，絕不把admin credential交給task；`migration_owner NOLOGIN`才擁有schema／DDL，沒有provider／Auth Admin／application secrets。Runner以唯一direct session核對project TLS identity、取得全域advisory lock，按第4節`schema_migration_runs`及phase／backfill checkpoints重驗before version、完全相同digest、catalog fingerprint及cursor後，只執行下一個可交易phase或bounded chunk；任何digest／version／checkpoint／rehearsal mismatch即`manual_review`而不執行，不能接受任意SQL或只靠最後一筆schema version猜測進度。broker image digest、ECS task、Secrets Manager read、CloudTrail及DB DDL audit都存證，正常完成或task crash都必須revoke membership、按唯一per-run session user終止**全部**backend並drop role，不能只信runner回報的PID／application name；若Supabase managed role semantics無法在disposable project證明上述least-privilege activation／**既有及未回報session** revocation，custom live gate失敗，不退回developer IP或永久project-admin connection。
+   - Exact candidate先以protected immutable URL完成團隊唯讀smoke。Owner核對technical-promotion checklist及Vercel API identity、reviewed SHA、`COMMERCE_CAPABLE=true`、candidate DPoP capability、canonical callback contract／route dry-run、crypto role與零競爭deployment後，release controller先停舊binding refresh，將apex／`www` alias切至新candidate、bounded drain，再原子把新generation設`active`並撤銷舊binding／role／sessions。這一步只讓新candidate成為canonical handler：DB／Edge仍固定`commerce_live=false`、`checkout_enabled=false`、`production_canary_enabled=false`、`search_index_enabled=false`、noindex與no-cache，50件仍未public publish，故alias promotion不等於上線。
+   - Candidate已在canonical host且上述fail-closed狀態一致後，Apple Pay等無完整sandbox的功能才可短暫打開第2節`production_canary_enabled`。只有第30號商品launch-approved immutable正式價仍為NT$2,200時，才用該SKU一件及allowlisted tester由`https://estatelignee.com`建立一筆真實訂單；order建立後立即原子關閉canary admission（無論如何最遲15分鐘自動關閉），但existing-order predicates仍讓canonical callback、QueryTradeInfo、invoice、`cancel_approved`、依法退款／作廢或折讓與實物確認`cancel_restock`收斂。只有所有payment／invoice／refund／inventory operation皆terminal或已人工收斂，該canary evidence才算通過。否則保持off並由使用者核准plan／ADR中的另一個既有精確SKU＋正式價。不得為此先開`commerce_live`／`checkout_enabled`、沿用草案價、建立第51件或讓一般顧客／其他SKU可付款；canary失敗時public仍off，修復後建立新的fail-closed candidate／binding重跑，不能跳到public enable或復活舊credential。
+   - 只有canonical-host canary、50/50 gate及全部launch checklist通過後，Owner才以另一個recent-AAL2 command一次發布50/50 batch，再依序CAS開啟共享`commerce_live`、`checkout_enabled`，最後才開`search_index_enabled`。此public-enable command不得暗中promotion、換deployment或略過canary evidence；任何revision／binding／generation不符都保持fail closed。
+   - 啟用後前 48 小時密切監測。發生金流、庫存、發票、物流或 PII P0 時立即停止新結帳，但保留 webhook、既有訂單、退款與後台。
+   - 緊急回滾先由DB／Edge關checkout／index並啟用catalog／media no-cache；不得把alias Instant Rollback到舊deployment。Release controller以「上一個已知良好commit＋目前Production provider bindings／runtime schema」建立全新deployment、DPoP binding、generation與brokered crypto role，絕不復活舊credential；驗證`crypto_policy.minimum_readable_version`、provider callback、catalog／legal／media revision、tombstones、migration相容與全部required checks後才切alias。
+   - 切換rollback target後重做global data-cache與media purge／revalidation並核對Vercel acknowledgement、catalog／legal／media revision與每個cron；先證明全部tombstoned SHA仍為410，完成前維持no-cache／noindex／停單。provider endpoint與DB schema保持向後相容，直到所有舊事件及訂單完成；舊binding capability refresh、DB role與全部sessions按第20節撤銷。
+   - 最終交付以 feature branch、完整測試證據、migration、runbook、資產 manifest 與操作手冊供使用者確認；只有使用者再次授權才 merge／push／切正式旗標。
 
 ## Key decisions & tradeoffs
 
-- **單一自有品牌取代多品牌選物店。** LIGNÉE 承擔全部商品與敘事一致性，失去多品牌背書，換取更清楚的品牌資產與長期可控性。
-- **高擬真原型先於真實商務系統。** 第一版可完整體驗購物，但不扣款、不建訂單、不管理庫存，也不保存個資；以降低未確認供應鏈與法務之前的風險。
-- **情境策展優先、分類購物並存。** 首頁先販售世界觀，商店與搜尋仍提供效率，避免精品感犧牲可用性。
-- **虛構品牌神話、真實商品聲明。** 莊園與傳承敘事可虛構，但產地、材質、製程與公司歷史不可冒充可驗證事實。
-- **當代英倫而非古裝懷舊。** 以莊園生活與鄉野運動作文化語彙，但人物、服裝與使用情境都屬當代；狩獵元素保持非血腥、非炫耀。
-- **繁中交易、英文造境。** 先服務台灣市場並控制內容成本，不在第一版承擔完整雙語維護。
-- **無會員、保留收藏。** 以瀏覽器儲存降低後端與隱私負擔，代價是跨裝置同步、真實帳戶與訂單查詢延後。
-- **27 件精選而非大量目錄。** 每個指定品項都有代表作與變體，將資源集中在敘事與品質；不營造虛假的龐大庫存。
-- **約 35 張高品質原創影像而非多角度海量圖。** 用一致性和版面重組換取可控的生成範圍；正式商品攝影仍須在量產後補齊。
-- **預覽部署而非正式上線。** 可分享和驗證，但保留 `noindex`、非交易告知與示範資料邊界。
-- **App Router＋CSS Modules＋最小相依。** 以 RSC 為預設、互動採小型 client islands；代價是自製元件較多，但可控性、bundle 與精品視覺一致性更高。
-- **URL 是商品搜尋狀態的唯一來源。** 可分享、可返回、可測試，代價是篩選互動必須維護 canonical query contract。
-- **原型不傳輸或持久化付款／個資。** 表單值只在當次頁面記憶體暫時處理；結帳只驗證互動與狀態機，付款品牌僅作明確不可用的文字示意。
+- **先做一天 ADR，不無限重開平台選型。** 以受管台灣商務平台對照已鎖定 must-have；若客製方案無法證明其必要性就先回報使用者，避免為 50 件商品無條件自建所有營運系統。
+- **台灣本島單市場。** 用繁中、TWD、5% 稅、黑貓常溫與台灣地址模型換取可控的法規與營運範圍；離島與跨境延後。
+- **自有品牌、Alderwick House 敘事。** 前台保持沉浸感，不使用「虛構／想像」等說破字眼；代價是必須更嚴格避免不存在的地址、歷史、貴族、皇室、產地與工藝聲明。
+- **50 件同日首發。** 使用者明確拒絕 12 件精簡系列；因此 50/50 release gate 是硬條件，任何一件供應鏈、安全或照片延誤都會推遲整批。
+- **五分類含獨立網球系列。** 以 10 換 10 維持總數 50，刪除腕錶、絲襪、耳環、床包、玻璃杯、花瓶、日誌及三件較弱的新概念，加入 10 件完整球場系列。
+- **150 張公開影像是第一輪基線。** 生成圖建立品牌與 Sandbox，但不等於每色實物攝影；正式販售必須逐 SKU 審核或換實拍，可能使最終媒體超過 150。
+- **高端而非超奢定價。** 定位約在 Polo Ralph Lauren 同級偏上、低於 Purple Label／Loro Piana；以實物品質、落地成本及約 65% 毛利驗證，不以故事替代價值證據。
+- **訪客結帳、無會員。** 降低個資與帳號攻擊面；代價是購買歷史、地址簿、跨裝置收藏與會員經營不在 V1。
+- **綠界 hosted redirect。** 卡資料不碰 LIGNÉE／Supabase，降低 PCI 範圍；代價是付款 UI、Apple Pay 顯示與部分體驗受綠界商戶能力控制。
+- **信用卡一次付清＋Apple Pay。** 不做分期、ATM、超商代碼、TWQR、BNPL 或 COD，換取較簡單的付款時序、庫存保留與退款。
+- **單一長期 Production Supabase＋短命 rehearsal。** Preview仍只用demo且不維持常駐staging，但碰Auth、Vault、grants、Cron或migration的release必須付費建立隔離disposable clone／project，取證後24小時內銷毀；以短期成本換取managed control plane可驗證性。
+- **官方OIDC＋deployment-specific capability。** Vercel OIDC只證明官方實際提供的project／Production claims；exact deployment與commit由獨立release controller查Vercel API、challenge該URL並簽短效DPoP capability。多一套AWS broker／KMS／DynamoDB維運，換取Auth、asset與crypto都能逐deployment撤銷，且不靠caller自報或不存在的OIDC claim。
+- **Crypto credential不進Vercel environment。** 每release DB role只由AWS broker持有並代為unwrap；任何競爭Production deploy fail closed，rollback也重建新binding／role。代價是部署流程只能走單一release controller，不能使用Vercel方便的任意dashboard promote或Instant Rollback。
+- **Recovery certificate先獨立enroll。** mTLS client cert以CSR proof-of-possession＋2-of-3 hardware signatures從無mTLS的窄endpoint取得，再用於單一operation gateway；多一道custodian程序，換取不循環且可稽核、可即時作廢的break-glass。
+- **20 分鐘顧客付款期限＋provider-safe 釋放。** 20 分鐘後不再建立／重產可付款 attempt，但庫存必須保留到綠界確認終局或超過書面 hard deadline＋grace；若綠界無法提供該界線，這個付款模型不能 live。
+- **付款、爭議、訂單、庫存、發票、物流、退貨分離狀態機。** 模型較多，但避免一個 `order_status` 隱藏矛盾並允許可靠重試；chargeback不抹掉原capture，也不假裝成退款。
+- **14 日品牌退貨、不直接換貨。** 提供高於法定 7 日的一致體驗；用退貨後重下單換取較簡單的庫存與發票處理。
+- **逐件退貨ledger＋部分退貨不追回免運。** 下單時凍結每unit gross／net／tax；取消與退貨共用unique unit credit。品牌承擔免運差額，原付費運費只在全單units最終都credited時退一次，換取可並發驗證、較少爭議的體驗。
+- **多包裹逐包收斂。** 一包被取走不會阻擋其他已安全取消包裹的退款／回庫；picked units仍須實際退回驗收。代價是order需有mixed recovery projection，不能只靠整單取消狀態。
+- **一般退款與發布限Owner。** V1不做多層簽核；Support／Fulfillment可建案但不能完成高風險金流。唯一machine例外是DB證明的`duplicate_receipt | paid_after_release`：`provider_anomaly_refund_principal`不能接受人工amount／target，只由guard選定QueryTradeInfo-confirmed receipt並原路精確全退，同時停單告警，避免品牌持有明知不應保留的扣款。
+- **兩位 Owner 與 Email 驗證。** 增加營運準備與一小步結帳摩擦，換取管理員可復原性、避免最後 Owner 鎖死，以及已付款訪客訂單不因錯誤 Email 失聯。
+- **Care & Repair V1 只做評估 inquiry。** 保留保養與售後入口，但不建立缺少付款／退款／發票生命週期的付費維修交易。
+- **Resend 交易信與行銷名單分離。** 退訂不影響訂單通知；不開 open／click tracking，犧牲部分行銷資料換取隱私。
+- **Vercel 匿名分析、無廣告 pixels。** 取得基本流量與效能資料，但 V1 不做再行銷、跨站歸因或行銷自動化。
+- **所有HTML動態nonce、公開data cache、媒體可撤銷。** 放棄ISR HTML以取得一致嚴格CSP與安全JSON-LD；商品／篇章data cache仍降低負載，公開媒體只用短CDN TTL＋Edge tombstone而不用immutable。代價是每次公開頁需hnd1動態render、媒體多一次safety check，並須更嚴格驗證效能／容量。
+- **真實商業資料是硬 gate。** 公司、客服、網域、法律與會計資訊不完整時寧可停留 Sandbox，也不填虛構值或啟用收款。
 
 ## Risks / open questions
 
-- `LIGNÉE` 的商標、公司名稱、社群帳號與網域尚未查核；正式投入品牌或公開銷售前必須完成專業檢索與註冊評估。
-- 商品供應商、打樣、成本、實際材質、尺寸表、產地、保固、維修與庫存均未確定；目前資料只能是概念原型，不能直接作為銷售承諾。
-- 生成影像可能出現商品結構、手部、文字、花紋或跨圖一致性問題；建置時需逐張人工檢查並重生成不合格資產。
-- 原創生成圖不能代替量產商品攝影；正式銷售前必須換成與實物一致、能呈現所有角度與細節的照片。
-- 14 日退貨、衛生用品例外、隱私、條款、稅務與商品標示須在正式上線前由台灣法律與會計專業人員審閱。
-- 真實付款、物流、電子發票、訂單通知、客服 SLA、庫存同步、退貨處理與資料保存政策尚未選型。
-- Vercel 預覽若公開分享，仍可能被截圖或轉傳；需保持明顯的非交易提示，且不得放入真實個資或未授權素材。
-- Vercel 登入與目標專案目前尚未驗證；沒有既有授權時，本次只能完成本機交付，不能擅自建立帳戶、專案或降低部署保護。
+- `estatelignee.com` 目前只確認可購買，尚未註冊、驗證或設定 DNS；價格與可用性可能改變。
+- 真實公司／商號名稱、代表人、統編、地址、客服電話、營業時間與申訴資訊尚未提供。
+- 綠界金流、Apple Pay、電子發票與物流商戶資格、正式 Merchant ID、字軌／配號、費率、退款能力與測試限制尚未核准。
+- 綠界公開 AioCheckOut 信用卡文件沒有可設定的付款到期欄位；必須取得正式商戶的不可再付款時間、取消方式或終局語意書面確認。未確認前不得在 20 分鐘釋放庫存，也不得 live。
+- 綠界／收單端的chargeback與provider reversal notification、case ID、debit／recredit報表語意、evidence格式及response deadline尚未由正式商戶合約確認；任何一項無法取得或無法做亂序／重播contract test時不得live，不能只靠每日交易總額人工猜測。
+- 無紙公司發票搭配綠界 Email／手機載具的正式商戶設定、完整 option matrix 與會計師核准尚未完成；不能暗中改成紙本。
+- 50 件實體商品、供應商、MOQ、樣品、成本、材質、產地、尺寸、包裝、保固、庫存與安全／性能測試都尚未完成；現有 seed 與價格只能是 Sandbox 草案。
+- 50 件同日發布會形成最長路徑風險；球拍、球鞋、太陽眼鏡、香氛、器皿或任一供應鏈問題都會阻擋全批。
+- 150 張生成影像需要大量逐張生成、身份一致性、商品結構與手部 QA；正式商品色彩與細節仍可能要求更多實拍。
+- Apple Pay 在綠界 hosted flow 的顯示與 sandbox／實機能力受商戶設定、裝置與官方規格控制，可能需要低額正式交易驗證。
+- 黑貓本島地址範圍、材積／重量、禁運／液體、申報價值／保價、最多 3 包裹、逆物流與異常賠償流程需以正式合約核對；目錄含高單價與擴香商品，任一不可承運就會阻擋 50/50 上市。
+- 台灣退貨、個資、商品標示、電子發票、會計保存、稅額捨入與文案仍須台灣律師／會計師按實際公司與商品完成審閱。
+- Supabase PITR／temporary clone、Vercel Pro／Edge Config／hnd1 Blob、AWS Deployment／Crypto／Auth brokers、certificate enrollment／Private CA、獨立AWS Object Lock backup、Resend與第二incident通道都會產生付費及跨帳號維運責任；未確認額度、custodian、30天immutable retention與值班Owner前只能完成fail-closed系統。
+- 來源Supabase organization完全不可用時，獨立nightly export只能承諾RPO≤24小時／RTO≤24小時；使用者最終簽核必須明確接受此catastrophic failure-domain風險。若不能接受，就在ADR加入獨立連續WAL／CDC與更短RPO的成本／可行性，未完成前不得live。
+- PII KEK／HMAC rotation、logical keyring escrow與來源Supabase完全遺失還原必須由實際營運Owner／獨立custodian依2-of-3 runbook承擔；錯誤撤銷、escrow漏版本或shares失聯會使訂單／backup無法解密，因此每次rotation前export與季度source-unavailable restore是硬gate。
+- Vercel Blob雖固定hnd1、Resend雖選東京寄送，供應商control-plane／metadata／logs仍可能在美國或其他subprocessor國家；data-residency register、DPA與台灣法遵揭露未完成前不得live。
+- `INCIDENT_WEBHOOK_URL` 的實際 Slack／Teams／PagerDuty 類型與值班收件人尚未提供；這是營運輸入而非可由程式代替的決策。
+- 獨立 dead-man monitor、每個 schedule 的 `DEADMAN_HEARTBEAT_URL_*`、值班收件人與實際 miss 告警尚未提供；它不能依賴 LIGNÉE DB、Vercel app runtime 或 Resend。
+- Live 需要兩位不同自然人的 Owner、各自 MFA／recovery 材料與互相復原能力；若實際營運只有一人就不能降低 gate 後直接上線。
+- Vercel Deployment Protection是否涵蓋所有generated／舊deployment URL，以及官方最低API權限、response schema、Protection bypass／rotation、`VercelReleaseProxy`的host＋path限制、exact deployment／SHA／READY查詢、URL challenge、關閉auto-deploy／dashboard promote、canonical host guard、回滾與cache purge的實際行為，需在production-disabled環境完成contract test；不得假設provider token天生是read-only或path-scoped，做不到就custom live gate失敗。
+- Vercel Edge在cache lookup前執行media tombstone、精確purge所有既有cache generation及兩region 60秒內讓舊URL成410都需production-disabled實證；若任一保證做不到，public media必須長期`no-store`並重新驗證效能預算。
+- 三位custodian的hardware key、TPM／non-exportable CSR能力、RecoveryCertificateEnrollment與ACM PCA client-auth template都尚未實際演練；缺兩位可同時完成5分鐘challenge的人員、或IAM無法隔離enrollment service時，bootstrap／DR gate失敗。
+- Supabase managed Postgres是否允許hash-pinned `crypto_role_lifecycle_owner`以最小`CREATEROLE`／`pg_signal_backend`建立release role、撤權並終止所有既有session尚待disposable-project實證；若只能把tenant-admin交給Crypto broker、共用Migration credential或無法限制其他roles，custom live gate失敗。
+- 全站 dynamic nonce HTML 放棄 ISR HTML；hnd1容量、cold-start、台灣延遲與成本必須用launch load profile驗證，否則需在不降低CSP的前提下重做架構決策。
+- 防reservation濫用只對明定attack envelope提供可測保證；超過100個已驗證信箱／100個IP的Sybil攻擊是已知 residual risk，需靠SKU circuit breaker、人工queue與緊急停單營運處理。
+- Resend inbound domain、case threading、spam／malware scanner 與 encrypted attachment quarantine 尚未選妥並驗證；未完成前不能把 `care@` 當正式客服入口。
+- 新增商品與文案會擴大中文字型 corpus；subset 若漏字或過大，需要重新調整效能預算。
+- LIGNÉE、Alderwick House、商品名稱、徽記與 `estatelignee.com` 的商標／權利檢索尚未完成。
+- 沒有正式 launch date；計畫只能以 gate 完成度決定是否上線，不能以日期跳過驗證。
 
 ## Out of scope
 
-- 真實信用卡／Apple Pay 扣款、訂單建立、電子發票、物流串接、庫存與退貨後台。
-- 會員註冊登入、跨裝置收藏、會員等級、訂單查詢與管理後台。
-- CMS、PIM、ERP、CRM、客服系統、電子報寄送與真實預約排程整合。
-- 國際配送、多幣別、完整英文版與自動翻譯。
-- 多品牌市集、第三方品牌目錄或未授權品牌／商品素材。
-- 超過 27 件首發商品或每件商品的完整量產攝影組。
-- 對未確認的產地、材料、製程、認證、家族史或企業年份作事實性宣稱。
-- 正式網域切換、搜尋引擎公開索引、付費廣告、分析追蹤與正式營運上線。
+- 顧客註冊、登入、會員等級、點數、地址簿、跨裝置收藏或會員訂單中心。
+- 國際配送、台灣離島、多幣別、關稅、完整英文版或自動翻譯。
+- 折扣碼、限時特價、會員價、虛構原價、禮物卡、儲值金、組合購、加價購、訂閱與推薦獎勵。
+- 不綁取消／退貨unit credit的金錢性goodwill、ex-gratia補償或外部匯款；V1只建稽核案件，不執行付款。
+- 商品評分、公開評論、社群內容牆或付費 influencer／名人背書。
+- 信用卡分期、ATM、WebATM、超商代碼／條碼、TWQR、BNPL、COD 或綁卡。
+- 預購、缺貨候補、到貨通知、backorder、oversell 或自動替代商品。
+- 直接換貨、多地址拆單、指定到貨日／時段、隔日／急件、超商取貨或其他物流商。
+- 多品牌選物店、第三方 marketplace、外部 CMS、PIM、ERP、CRM、Zendesk、LINE 或即時聊天機器人。
+- 自動預約排程；Private Appointment 只做人工確認申請。
+- GA、Meta Pixel、廣告再行銷、跨站追蹤與付費廣告投放。
+- 終身保固、永久免費維修、所有商品必定可修復或未經證據的永續／品質承諾。
+- 付費維修服務訂單、維修費線上付款、維修發票與維修退款；V1 Care & Repair 只做 care guide、瑕疵售後與可行性 inquiry。
+- 原生 iOS／Android App、實體 POS、門市庫存或全通路整合。
+- 在本計畫最終簽核前修改商城程式、建立付費商戶、購買網域、寫入正式 Supabase、merge、push 或開啟真實收款。

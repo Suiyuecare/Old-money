@@ -58,7 +58,7 @@ export default function TermsPage() {
           <section className={styles.policySection} id="content">
             <h2>故事與商品事實的界線</h2>
             <p>
-              The Lignée Estate 是品牌原創的虛構世界，不代表真實英國莊園、家族譜系、爵位或企業沿革。人物保持匿名，故事用來建立當代生活的情境，不用來主張可查證的歷史來源。
+              Alderwick House 是 LIGNÉE 的品牌宅邸與生活篇章，不主張可參觀地址、家族譜系、爵位、皇家關係或英國製造來源。商品事實只以完成核准的正式標示為準。
             </p>
             <p>
               商品名稱、影像、價格與概念材質是設計原型。產地、纖維成分、皮革來源、機芯、製程、認證、尺寸、保固與量產外觀皆須在供應鏈確認後，才可成為正式銷售聲明。
