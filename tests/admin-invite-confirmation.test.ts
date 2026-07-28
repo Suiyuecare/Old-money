@@ -17,6 +17,18 @@ vi.mock("@supabase/ssr", () => ({
     auth: { getSession },
   }),
 }));
+vi.mock("@/lib/admin/actions", () => ({
+  adjustInventoryAction: vi.fn(),
+  archiveProductAction: vi.fn(),
+  beginMfaEnrollmentAction: vi.fn(),
+  confirmInviteAction: vi.fn(),
+  createProductAction: vi.fn(),
+  publishProductAction: vi.fn(),
+  signInAction: vi.fn(),
+  updateProductAction: vi.fn(),
+  verifyMfaChallengeAction: vi.fn(),
+  verifyMfaEnrollmentAction: vi.fn(),
+}));
 
 import { AdminInviteConfirmation } from "@/components/admin/AdminInviteConfirmation";
 

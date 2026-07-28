@@ -20,6 +20,7 @@ export {
   type PublishedSKU,
 } from "./contracts";
 export { createCatalogContentDigest } from "./digest";
+export { createEstateNo01Snapshot } from "./estate-no01";
 export {
   createCatalogSnapshotIndex,
   type CatalogPriceRange,
@@ -33,7 +34,6 @@ export {
   StaticCatalogRepository,
   SupabaseCatalogRepository,
   createCatalogRepositoryFromEnvironment,
-  createEstateNo01Snapshot,
   createSupabaseCatalogSnapshotLoader,
   resolveCatalogSource,
   type CatalogRepository,

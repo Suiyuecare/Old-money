@@ -1,18 +1,11 @@
 import {
-  categoryMetadata,
-  collections,
-  products as estateProducts,
-  skus as estateSkus,
-} from "@/lib/catalog";
-import { parseEstateNo01CatalogDocument } from "@/lib/catalog-schema";
-
-import {
   parsePublicCatalogSnapshot,
   type PublicCatalogSnapshot,
   type PublishedProduct,
   type PublishedSKU,
 } from "./contracts";
 import { createCatalogContentDigest } from "./digest";
+import { createEstateNo01Snapshot } from "./estate-no01";
 
 export type CatalogSource = "static" | "compare" | "database";
 
@@ -57,50 +50,6 @@ abstract class SnapshotBackedCatalogRepository
   async findCurrentSku(skuId: string): Promise<PublishedSKU | undefined> {
     return (await this.readSnapshot()).skus.find((sku) => sku.id === skuId);
   }
-}
-
-const ESTATE_NO_01_GENERATED_AT = "2026-07-24T00:00:00.000Z";
-
-export function createEstateNo01Snapshot(): PublicCatalogSnapshot {
-  // The static source is a locked migration fixture. This assertion keeps its
-  // original 50 product / 189 SKU identity contract separate from the
-  // unbounded runtime catalog schema.
-  const fixture = parseEstateNo01CatalogDocument({
-    products: estateProducts,
-    skus: estateSkus,
-  });
-  const publicProducts = fixture.products.map(
-    ({ launchGateCodes, ...product }) => {
-      // Reading the internal gates makes the redaction deliberate and keeps
-      // them out of the public publication contract.
-      void launchGateCodes;
-      return product;
-    },
-  );
-  return parsePublicCatalogSnapshot({
-    schemaVersion: 1,
-    revision: "1",
-    generatedAt: ESTATE_NO_01_GENERATED_AT,
-    products: publicProducts,
-    skus: fixture.skus,
-    media: [],
-    categories: categoryMetadata.map((category) => ({
-      code: category.id,
-      nameEn: category.englishLabel,
-      nameZh: category.label,
-      description: category.description,
-      routeSegment: category.routeSegment,
-      sortOrder: category.order,
-    })),
-    chapters: collections.map((chapter, index) => ({
-      code: chapter.id,
-      titleEn: chapter.name,
-      titleZh: chapter.subtitle,
-      description: chapter.description,
-      routeSegment: chapter.id,
-      sortOrder: index + 1,
-    })),
-  });
 }
 
 export class StaticCatalogRepository extends SnapshotBackedCatalogRepository {

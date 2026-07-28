@@ -19,7 +19,7 @@ import {
   resolveCartLine,
   useStore,
 } from "@/components/store/StoreProvider";
-import { createEstateNo01Snapshot } from "@/lib/catalog-runtime";
+import { createEstateNo01Snapshot } from "@/lib/catalog-runtime/estate-no01";
 
 const KNOWN_SKU_ID = "field-house-polo-s-estate-olive";
 const KNOWN_PRODUCT_ID = "field-house-polo";

@@ -15,15 +15,17 @@ import {
   type ProductOptionKey,
 } from "@/lib/catalog";
 import {
-  createCatalogSnapshotIndex,
-  createEstateNo01Snapshot,
-  type CatalogSnapshotIndex,
   type PublicCatalogSnapshot,
   type PublishedCategory,
   type PublishedChapter,
   type PublishedProduct,
   type PublishedSKU,
-} from "@/lib/catalog-runtime";
+} from "@/lib/catalog-runtime/contracts";
+import { createEstateNo01Snapshot } from "@/lib/catalog-runtime/estate-no01";
+import {
+  createCatalogSnapshotIndex,
+  type CatalogSnapshotIndex,
+} from "@/lib/catalog-runtime/selectors";
 
 export const CART_STORAGE_KEY = "lignee:cart";
 export const WISHLIST_STORAGE_KEY = "lignee:wishlist";

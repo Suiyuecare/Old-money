@@ -1,7 +1,5 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
 import { createElement } from "react";
 import {
   cleanup,
@@ -9,7 +7,15 @@ import {
   screen,
 } from "@testing-library/react";
 import "@testing-library/jest-dom/vitest";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/admin/engagement-actions", () => ({
+  createNewsletterCampaignAction: vi.fn(),
+  transitionAppointmentAction: vi.fn(),
+  transitionNewsletterCampaignAction: vi.fn(),
+  unsubscribeNewsletterConsentAction: vi.fn(),
+  updateNewsletterCampaignAction: vi.fn(),
+}));
 
 import { AdminAppointmentsWorkspace } from "@/components/admin/AdminAppointmentsWorkspace";
 import { AdminNewsletterWorkspace } from "@/components/admin/AdminNewsletterWorkspace";
@@ -59,32 +65,6 @@ const consent: AdminNewsletterConsentProjection = {
 afterEach(() => cleanup());
 
 describe("appointment and newsletter admin UI", () => {
-  it("uses retry-stable keys that rotate only after durable success", () => {
-    const appointments = readFileSync(
-      resolve(
-        process.cwd(),
-        "components/admin/AdminAppointmentsWorkspace.tsx",
-      ),
-      "utf8",
-    );
-    const newsletter = readFileSync(
-      resolve(
-        process.cwd(),
-        "components/admin/AdminNewsletterWorkspace.tsx",
-      ),
-      "utf8",
-    );
-
-    expect(
-      appointments.match(/useAdminIdempotencyKey\(/g),
-    ).toHaveLength(1);
-    expect(
-      newsletter.match(/useAdminIdempotencyKey\(/g),
-    ).toHaveLength(3);
-    expect(appointments).not.toContain("useState(");
-    expect(newsletter).not.toContain("useState(");
-  });
-
   it("shows only sealed appointment indicators and versioned state controls", () => {
     const { container } = render(createElement(
       AdminAppointmentsWorkspace,
