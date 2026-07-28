@@ -23,19 +23,10 @@ import type {
 } from "@/lib/admin/types";
 import type { AdminTaxonomyItem } from "@/lib/admin/taxonomy";
 
+import { ActionFeedback } from "./AdminActionFeedback";
 import { useAdminIdempotencyKey } from "./useAdminIdempotencyKey";
 
 const idle: AdminActionState = { status: "idle", message: "" };
-
-export function ActionFeedback({ state }: { readonly state: AdminActionState<unknown> }) {
-  if (state.status === "idle") return null;
-  return (
-    <p className="admin-feedback" data-status={state.status} role={state.status === "error" ? "alert" : "status"}>
-      {state.message}
-      {state.code ? <small>{state.code}</small> : null}
-    </p>
-  );
-}
 
 function SubmitButton({ children }: { readonly children: React.ReactNode }) {
   return <button className="admin-button" type="submit">{children}</button>;

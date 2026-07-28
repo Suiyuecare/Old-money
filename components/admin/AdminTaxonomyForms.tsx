@@ -12,7 +12,7 @@ import type {
 } from "@/lib/admin/taxonomy";
 import type { AdminActionState } from "@/lib/admin/types";
 
-import { ActionFeedback } from "./AdminForms";
+import { ActionFeedback } from "./AdminActionFeedback";
 import { AdminStatus } from "./AdminUi";
 import { useAdminIdempotencyKey } from "./useAdminIdempotencyKey";
 

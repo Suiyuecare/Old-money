@@ -14,7 +14,7 @@ import { requestOwnerRecoveryAction } from "@/lib/admin/actions";
 import type { AdminOwnerRecoveryContext } from "@/lib/admin/staff";
 import type { AdminActionState } from "@/lib/admin/types";
 
-import { ActionFeedback } from "./AdminForms";
+import { ActionFeedback } from "./AdminActionFeedback";
 import { useAdminIdempotencyKey } from "./useAdminIdempotencyKey";
 
 const idle: AdminActionState = { status: "idle", message: "" };

@@ -23,7 +23,7 @@ import type {
   AdminVariant,
 } from "@/lib/admin/types";
 
-import { ActionFeedback } from "./AdminForms";
+import { ActionFeedback } from "./AdminActionFeedback";
 import { useAdminIdempotencyKey } from "./useAdminIdempotencyKey";
 
 const idle: AdminActionState = { status: "idle", message: "" };

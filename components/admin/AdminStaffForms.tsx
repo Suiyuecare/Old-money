@@ -12,7 +12,7 @@ import {
 import type { AdminStaffMembership } from "@/lib/admin/staff";
 import type { AdminActionState } from "@/lib/admin/types";
 
-import { ActionFeedback } from "./AdminForms";
+import { ActionFeedback } from "./AdminActionFeedback";
 import { AdminStatus, formatAdminDate } from "./AdminUi";
 import { useAdminIdempotencyKey } from "./useAdminIdempotencyKey";
 

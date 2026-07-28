@@ -17,7 +17,7 @@ import type {
 } from "@/lib/admin/engagement";
 import type { AdminActionState } from "@/lib/admin/types";
 
-import { ActionFeedback } from "./AdminForms";
+import { ActionFeedback } from "./AdminActionFeedback";
 import {
   AdminEmpty,
   AdminStatus,

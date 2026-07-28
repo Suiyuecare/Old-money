@@ -14,7 +14,7 @@ import type {
   AdminProductDraft,
 } from "@/lib/admin/types";
 
-import { ActionFeedback } from "./AdminForms";
+import { ActionFeedback } from "./AdminActionFeedback";
 import { AdminStatus, formatAdminDate } from "./AdminUi";
 import { useAdminIdempotencyKey } from "./useAdminIdempotencyKey";
 
