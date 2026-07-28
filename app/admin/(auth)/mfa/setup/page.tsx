@@ -3,7 +3,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 
 import { MfaEnrollmentForm } from "@/components/admin/AdminForms";
 import { getAdminAuthClient, safeAdminReturnPath } from "@/lib/admin/auth";
-import { getCommerceEnvironment } from "@/lib/commerce/config";
+import { isTrustedDemoEnvironment } from "@/lib/commerce/config";
 
 export const metadata = { title: "設定雙重驗證" };
 
@@ -14,13 +14,13 @@ export default async function AdminMfaSetupPage({
 }) {
   const params = await searchParams;
   const returnPath = safeAdminReturnPath(params.returnPath ?? null);
-  const demo = getCommerceEnvironment().mode === "demo" && process.env.NODE_ENV !== "production";
+  const demo = isTrustedDemoEnvironment();
   if (demo) {
     return (
       <div className="admin-auth-card">
         <span className="admin-eyebrow">Local Demo</span>
         <h1>MFA 模擬完成</h1>
-        <p>本機展示環境不建立真實登入憑證；Preview 與 Production 仍會強制 AAL2。</p>
+        <p>隔離展示環境不建立真實登入憑證；Production 仍會強制 AAL2。</p>
         <Link className="admin-button" href={returnPath}>返回後台</Link>
       </div>
     );

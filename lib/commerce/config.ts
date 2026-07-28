@@ -7,6 +7,10 @@ const booleanText = z.enum(["true", "false"]).transform((value) => value === "tr
 const optionalBoolean = (value: string | undefined): boolean | undefined =>
   value === undefined ? undefined : booleanText.parse(value);
 
+export const isVerifiedVercelPreview = (
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean => env.VERCEL === "1" && env.VERCEL_ENV === "preview";
+
 export interface RuntimeControls {
   readonly revision: number;
   readonly mediaSafetyRevision: number;
@@ -59,8 +63,7 @@ export function getCommerceEnvironment(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): CommerceEnvironment {
   const requestedMode = env.LIGNEE_MODE;
-  const verifiedPreview =
-    env.VERCEL === "1" && env.VERCEL_ENV === "preview";
+  const verifiedPreview = isVerifiedVercelPreview(env);
   const demoAllowed =
     env.NODE_ENV !== "production" || verifiedPreview;
   const mode: CommerceMode =
@@ -153,6 +156,12 @@ export function getCommerceEnvironment(
     expectedCanaryEvidenceSha256,
   });
 }
+
+export const isTrustedDemoEnvironment = (
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean =>
+  getCommerceEnvironment(env).mode === "demo" &&
+  (env.NODE_ENV !== "production" || isVerifiedVercelPreview(env));
 
 export const isCanonicalCommerceRequest = (
   requestUrl: URL,

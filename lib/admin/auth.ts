@@ -1,6 +1,9 @@
 import { cookies, headers } from "next/headers";
 
-import { getCommerceEnvironment } from "@/lib/commerce/config";
+import {
+  getCommerceEnvironment,
+  isTrustedDemoEnvironment,
+} from "@/lib/commerce/config";
 import { createRequestAuthClient } from "@/lib/supabase/request-clients";
 
 import type { AdminAccess, AdminIdentity, AdminRole } from "./types";
@@ -78,8 +81,7 @@ function parseMembership(value: unknown): MembershipRow | null {
 }
 
 export async function getAdminAccess(): Promise<AdminAccess> {
-  const environment = getCommerceEnvironment();
-  if (environment.mode === "demo" && process.env.NODE_ENV !== "production") {
+  if (isTrustedDemoEnvironment()) {
     return { status: "authorized", identity: demoIdentity(), reason: null };
   }
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_PUBLISHABLE_KEY) {
@@ -157,8 +159,7 @@ export async function getAdminPageIdentity(
 }
 
 export async function requireRecentAal2(maxAgeSeconds = 600): Promise<void> {
-  const environment = getCommerceEnvironment();
-  if (environment.mode === "demo" && process.env.NODE_ENV !== "production") return;
+  if (isTrustedDemoEnvironment()) return;
   const client = await getAdminAuthClient();
   const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
   if (error || data.currentLevel !== "aal2") {
@@ -200,9 +201,10 @@ export async function assertAdminMutationOrigin(): Promise<void> {
   const origin = requestHeaders.get("origin");
   const host = requestHeaders.get("host");
   const environment = getCommerceEnvironment();
+  const trustedDemo = isTrustedDemoEnvironment();
 
   if (!origin) {
-    if (environment.mode === "demo" && process.env.NODE_ENV !== "production") return;
+    if (trustedDemo) return;
     throw new AdminAuthorizationError("ORIGIN_REQUIRED", "缺少操作來源資訊。", 403);
   }
 
@@ -213,7 +215,7 @@ export async function assertAdminMutationOrigin(): Promise<void> {
     throw new AdminAuthorizationError("ORIGIN_INVALID", "操作來源無效。", 403);
   }
 
-  if (environment.mode === "demo" && process.env.NODE_ENV !== "production") {
+  if (trustedDemo) {
     if (parsed.host === host) return;
   } else if (parsed.protocol === "https:" && parsed.host === environment.canonicalHost && host === environment.canonicalHost) {
     return;

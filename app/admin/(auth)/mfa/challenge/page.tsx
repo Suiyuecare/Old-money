@@ -3,7 +3,7 @@ import { redirect, unstable_rethrow } from "next/navigation";
 
 import { MfaChallengeForm } from "@/components/admin/AdminForms";
 import { getAdminAuthClient, safeAdminReturnPath } from "@/lib/admin/auth";
-import { getCommerceEnvironment } from "@/lib/commerce/config";
+import { isTrustedDemoEnvironment } from "@/lib/commerce/config";
 
 export const metadata = { title: "管理員雙重驗證" };
 
@@ -14,7 +14,7 @@ export default async function AdminMfaChallengePage({
 }) {
   const params = await searchParams;
   const returnPath = safeAdminReturnPath(params.returnPath ?? null);
-  if (getCommerceEnvironment().mode === "demo" && process.env.NODE_ENV !== "production") {
+  if (isTrustedDemoEnvironment()) {
     redirect(returnPath);
   }
 

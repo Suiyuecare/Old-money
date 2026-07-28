@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { SignInForm } from "@/components/admin/AdminForms";
-import { getCommerceEnvironment } from "@/lib/commerce/config";
+import { isTrustedDemoEnvironment } from "@/lib/commerce/config";
 
 export const metadata = { title: "管理員登入" };
 
@@ -11,7 +11,7 @@ export default async function AdminSignInPage({
   readonly searchParams: Promise<{ readonly reason?: string; readonly returnPath?: string }>;
 }) {
   const params = await searchParams;
-  const demo = getCommerceEnvironment().mode === "demo" && process.env.NODE_ENV !== "production";
+  const demo = isTrustedDemoEnvironment();
   return (
     <div className="admin-auth-card">
       <span className="admin-eyebrow">Invite Only · AAL2</span>

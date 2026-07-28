@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { getCommerceEnvironment } from "@/lib/commerce/config";
+import {
+  getCommerceEnvironment,
+  isTrustedDemoEnvironment,
+} from "@/lib/commerce/config";
 import {
   DEMO_PUBLIC_COMMANDS_PER_MINUTE,
   DEMO_PUBLIC_COMMAND_WINDOW_MS,
@@ -532,6 +535,18 @@ describe("fail-closed readiness and rate limits", () => {
       LIGNEE_MODE: "demo",
     });
     expect(preview.mode).toBe("demo");
+    expect(isTrustedDemoEnvironment({
+      NODE_ENV: "production",
+      VERCEL: "1",
+      VERCEL_ENV: "preview",
+      LIGNEE_MODE: "demo",
+    })).toBe(true);
+    expect(isTrustedDemoEnvironment({
+      NODE_ENV: "production",
+      VERCEL: "1",
+      VERCEL_ENV: "production",
+      LIGNEE_MODE: "demo",
+    })).toBe(false);
   });
 
   it("serves approved revision-matched media in emergency no-cache mode", () => {

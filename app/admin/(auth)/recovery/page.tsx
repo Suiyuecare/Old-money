@@ -6,15 +6,13 @@ import {
   getAdminOwnerRecoveryContext,
   type AdminOwnerRecoveryContext,
 } from "@/lib/admin/staff";
-import { getCommerceEnvironment } from "@/lib/commerce/config";
+import { isTrustedDemoEnvironment } from "@/lib/commerce/config";
 
 export const metadata = { title: "Owner 安全復原" };
 
 export default async function AdminOwnerRecoveryPage() {
   let context: AdminOwnerRecoveryContext;
-  const demo =
-    getCommerceEnvironment().mode === "demo" &&
-    process.env.NODE_ENV !== "production";
+  const demo = isTrustedDemoEnvironment();
   try {
     if (!demo) {
       const client = await getAdminAuthClient();

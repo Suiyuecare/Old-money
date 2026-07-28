@@ -1,6 +1,8 @@
 import { getAdminAuthClient } from "@/lib/admin/auth";
 import type { AdminIdentity } from "@/lib/admin/types";
-import { getCommerceEnvironment } from "@/lib/commerce/config";
+import {
+  isTrustedDemoEnvironment,
+} from "@/lib/commerce/config";
 import { CommerceDomainError } from "@/lib/commerce/errors";
 import {
   DeterministicIdempotencyStore,
@@ -291,8 +293,7 @@ export class DemoMediaPipeline implements MediaPipeline {
 let demoPipeline: DemoMediaPipeline | undefined;
 
 export async function getRequestMediaPipeline(): Promise<MediaPipeline> {
-  const environment = getCommerceEnvironment();
-  if (environment.mode === "demo" && process.env.NODE_ENV !== "production") {
+  if (isTrustedDemoEnvironment()) {
     demoPipeline ??= new DemoMediaPipeline();
     return demoPipeline;
   }
